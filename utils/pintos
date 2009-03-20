@@ -1,0 +1,959 @@
+#! /usr/bin/perl -w
+
+use strict;
+use POSIX;
+use Fcntl;
+use File::Temp 'tempfile';
+use Getopt::Long qw(:config bundling);
+
+# Command-line options.
+our ($start_time) = time ();
+our ($sim);			# Simulator: bochs, qemu, or player.
+our ($debug) = "none";		# Debugger: none, monitor, or gdb.
+our ($mem) = 4;			# Physical RAM in MB.
+our ($serial) = 1;		# Use serial port for input and output?
+our ($vga);			# VGA output: window, terminal, or none.
+our ($jitter);			# Seed for random timer interrupts, if set.
+our ($realtime);		# Synchronize timer interrupts with real time?
+our ($timeout);			# Maximum runtime in seconds, if set.
+our ($kill_on_failure);		# Abort quickly on test failure?
+our (@puts);			# Files to copy into the VM.
+our (@gets);			# Files to copy out of the VM.
+our ($as_ref);			# Reference to last addition to @gets or @puts.
+our (@kernel_args);		# Arguments to pass to kernel.
+our (%disks) = (OS => {DEF_FN => 'os.dsk'},		# Disks to give VM.
+		FS => {DEF_FN => 'fs.dsk'},
+		SCRATCH => {DEF_FN => 'scratch.dsk'},
+		SWAP => {DEF_FN => 'swap.dsk'});
+our (@disks_by_iface) = @disks{qw (OS FS SCRATCH SWAP)};
+
+parse_command_line ();
+find_disks ();
+prepare_scratch_disk ();
+prepare_arguments ();
+run_vm ();
+finish_scratch_disk ();
+
+exit 0;
+
+# Parses the command line.
+sub parse_command_line {
+    usage (0) if @ARGV == 0 || (@ARGV == 1 && $ARGV[0] eq '--help');
+    
+    @kernel_args = @ARGV;
+    if (grep ($_ eq '--', @kernel_args)) {
+	@ARGV = ();
+	while ((my $arg = shift (@kernel_args)) ne '--') {
+	    push (@ARGV, $arg);
+	}
+	GetOptions ("sim=s" => sub { set_sim ($_[1]) },
+		    "bochs" => sub { set_sim ("bochs") },
+		    "qemu" => sub { set_sim ("qemu") },
+		    "player" => sub { set_sim ("player") },
+
+		    "debug=s" => sub { set_debug ($_[1]) },
+		    "no-debug" => sub { set_debug ("none") },
+		    "monitor" => sub { set_debug ("monitor") },
+		    "gdb" => sub { set_debug ("gdb") },
+
+		    "m|memory=i" => \$mem,
+		    "j|jitter=i" => sub { set_jitter ($_[1]) },
+		    "r|realtime" => sub { set_realtime () },
+
+		    "T|timeout=i" => \$timeout,
+		    "k|kill-on-failure" => \$kill_on_failure,
+
+		    "v|no-vga" => sub { set_vga ('none'); },
+		    "s|no-serial" => sub { $serial = 0; },
+		    "t|terminal" => sub { set_vga ('terminal'); },
+
+		    "p|put-file=s" => sub { add_file (\@puts, $_[1]); },
+		    "g|get-file=s" => sub { add_file (\@gets, $_[1]); },
+		    "a|as=s" => sub { set_as ($_[1]); },
+
+		    "h|help" => sub { usage (0); },
+
+		    "os-disk=s" => \$disks{OS}{FILE_NAME},
+		    "fs-disk=s" => \$disks{FS}{FILE_NAME},
+		    "scratch-disk=s" => \$disks{SCRATCH}{FILE_NAME},
+		    "swap-disk=s" => \$disks{SWAP}{FILE_NAME},
+
+		    "0|disk-0|hda=s" => \$disks_by_iface[0]{FILE_NAME},
+		    "1|disk-1|hdb=s" => \$disks_by_iface[1]{FILE_NAME},
+		    "2|disk-2|hdc=s" => \$disks_by_iface[2]{FILE_NAME},
+		    "3|disk-3|hdd=s" => \$disks_by_iface[3]{FILE_NAME})
+	  or exit 1;
+    }
+
+    $sim = "bochs" if !defined $sim;
+    $debug = "none" if !defined $debug;
+    $vga = "window" if !defined $vga;
+
+    undef $timeout, print "warning: disabling timeout with --$debug\n"
+      if defined ($timeout) && $debug ne 'none';
+
+    print "warning: enabling serial port for -k or --kill-on-failure\n"
+      if $kill_on_failure && !$serial;
+}
+
+# usage($exitcode).
+# Prints a usage message and exits with $exitcode.
+sub usage {
+    my ($exitcode) = @_;
+    $exitcode = 1 unless defined $exitcode;
+    print <<'EOF';
+pintos, a utility for running Pintos in a simulator
+Usage: pintos [OPTION...] -- [ARGUMENT...]
+where each OPTION is one of the following options
+  and each ARGUMENT is passed to Pintos kernel verbatim.
+Simulator selection:
+  --bochs                  (default) Use Bochs as simulator
+  --qemu                   Use QEMU as simulator
+  --player                 Use VMware Player as simulator
+Debugger selection:
+  --no-debug               (default) No debugger
+  --monitor                Debug with simulator's monitor
+  --gdb                    Debug with gdb
+Display options: (default is both VGA and serial)
+  -v, --no-vga             No VGA display or keyboard
+  -s, --no-serial          No serial input or output
+  -t, --terminal           Display VGA in terminal (Bochs only)
+Timing options: (Bochs only)
+  -j SEED                  Randomize timer interrupts
+  -r, --realtime           Use realistic, not reproducible, timings
+Testing options:
+  -T, --timeout=N          Kill Pintos after N seconds CPU time or N*load_avg
+                           seconds wall-clock time (whichever comes first)
+  -k, --kill-on-failure    Kill Pintos a few seconds after a kernel or user
+                           panic, test failure, or triple fault
+Configuration options:
+  -m, --mem=N              Give Pintos N MB physical RAM (default: 4)
+File system commands (for `run' command):
+  -p, --put-file=HOSTFN    Copy HOSTFN into VM, by default under same name
+  -g, --get-file=GUESTFN   Copy GUESTFN out of VM, by default under same name
+  -a, --as=FILENAME        Specifies guest (for -p) or host (for -g) file name
+Disk options: (name an existing FILE or specify SIZE in MB for a temp disk)
+  --os-disk=FILE           Set OS disk file (default: os.dsk)
+  --fs-disk=FILE|SIZE      Set FS disk file (default: fs.dsk)
+  --scratch-disk=FILE|SIZE Set scratch disk (default: scratch.dsk)
+  --swap-disk=FILE|SIZE    Set swap disk file (default: swap.dsk)
+Other options:
+  -h, --help               Display this help message.
+EOF
+    exit $exitcode;
+}
+
+# Sets the simulator.
+sub set_sim {
+    my ($new_sim) = @_;
+    die "--$new_sim conflicts with --$sim\n"
+	if defined ($sim) && $sim ne $new_sim;
+    $sim = $new_sim;
+}
+
+# Sets the debugger.
+sub set_debug {
+    my ($new_debug) = @_;
+    die "--$new_debug conflicts with --$debug\n"
+	if $debug ne 'none' && $new_debug ne 'none' && $debug ne $new_debug;
+    $debug = $new_debug;
+}
+
+# Sets VGA output destination.
+sub set_vga {
+    my ($new_vga) = @_;
+    if (defined ($vga) && $vga ne $new_vga) {
+	print "warning: conflicting vga display options\n";
+    }
+    $vga = $new_vga;
+}
+
+# Sets randomized timer interrupts.
+sub set_jitter {
+    my ($new_jitter) = @_;
+    die "--realtime conflicts with --jitter\n" if defined $realtime;
+    die "different --jitter already defined\n"
+	if defined $jitter && $jitter != $new_jitter;
+    $jitter = $new_jitter;
+}
+
+# Sets real-time timer interrupts.
+sub set_realtime {
+    die "--realtime conflicts with --jitter\n" if defined $jitter;
+    $realtime = 1;
+}
+
+# add_file(\@list, $file)
+#
+# Adds [$file] to @list, which should be @puts or @gets.
+# Sets $as_ref to point to the added element.
+sub add_file {
+    my ($list, $file) = @_;
+    $as_ref = [$file];
+    push (@$list, $as_ref);
+}
+
+# Sets the guest/host name for the previous put/get.
+sub set_as {
+    my ($as) = @_;
+    die "-a (or --as) is only allowed after -p or -g\n" if !defined $as_ref;
+    die "Only one -a (or --as) is allowed after -p or -g\n"
+      if defined $as_ref->[1];
+    $as_ref->[1] = $as;
+}
+
+# Locates the files used to back each of the virtual disks,
+# and creates temporary disks.
+sub find_disks {
+    for my $disk (values %disks) {
+	# If there's no assigned file name but the default file exists,
+	# try to assign a default file name.
+	if (!defined ($disk->{FILE_NAME})) {
+	    for my $try_fn ($disk->{DEF_FN}, "build/" . $disk->{DEF_FN}) {
+		$disk->{FILE_NAME} = $try_fn, last
+		  if -e $try_fn;
+	    }
+	}
+
+	# If there's no file name, we're done.
+	next if !defined ($disk->{FILE_NAME});
+
+	if ($disk->{FILE_NAME} =~ /^\d+(\.\d+)?|\.\d+$/) {
+	    # Create a temporary disk of approximately the specified
+	    # size in megabytes.
+	    die "OS disk can't be temporary\n" if $disk == $disks{OS};
+
+	    my ($mb) = $disk->{FILE_NAME};
+	    undef $disk->{FILE_NAME};
+
+	    my ($cyl_size) = 512 * 16 * 63;
+	    extend_disk ($disk, ceil ($mb * 2) * $cyl_size);
+	} else {
+	    # The file must exist and have nonzero size.
+	    -e $disk->{FILE_NAME} or die "$disk->{FILE_NAME}: stat: $!\n";
+	    -s _ or die "$disk->{FILE_NAME}: disk has zero size\n";
+	}
+    }
+
+    # Warn about (potentially) missing disks.
+    die "Cannot find OS disk\n" if !defined $disks{OS}{FILE_NAME};
+    if (my ($project) = `pwd` =~ /\b(threads|userprog|vm|filesys)\b/) {
+	if ((grep ($project eq $_, qw (userprog vm filesys)))
+	    && !defined ($disks{FS}{FILE_NAME})) {
+	    print STDERR "warning: it looks like you're running the $project ";
+	    print STDERR "project, but no file system disk is present\n";
+	}
+	if ($project eq 'vm' && !defined $disks{SWAP}{FILE_NAME}) {
+	    print STDERR "warning: it looks like you're running the $project ";
+	    print STDERR "project, but no swap disk is present\n";
+	}
+    }
+}
+
+# Prepare the scratch disk for gets and puts.
+sub prepare_scratch_disk {
+    if (@puts) {
+	# Write ustar header and data for each file.
+	put_scratch_file ($_->[0],
+			  defined $_->[1] ? $_->[1] : $_->[0])
+	  foreach @puts;
+
+	# Write end-of-archive marker.
+	#print { $disks{SCRATCH}{HANDLE} } "\0" x 1024;
+	write_fully ($disks{SCRATCH}{HANDLE}, $disks{SCRATCH}{FILE_NAME},
+		     "\0" x 1024);
+    }
+
+    # Make sure the scratch disk is big enough to get big files.
+    extend_disk ($disks{SCRATCH}, @gets * 1024 * 1024) if @gets;
+}
+
+# Read "get" files from the scratch disk.
+sub finish_scratch_disk {
+    # We need to start reading the scratch disk from the beginning again.
+    if (@gets) {
+	close ($disks{SCRATCH}{HANDLE});
+	undef ($disks{SCRATCH}{HANDLE});
+    }
+
+    # Read each file.
+    # If reading fails, delete that file and all subsequent files.
+    my ($ok) = 1;
+    foreach my $get (@gets) {
+	my ($name) = defined ($get->[1]) ? $get->[1] : $get->[0];
+	my ($error) = get_scratch_file ($name);
+	if ($error) {
+	    print STDERR "getting $name failed ($error)\n";
+	    die "$name: unlink: $!\n" if !unlink ($name) && !$!{ENOENT};
+	    $ok = 0;
+	}
+    }
+}
+
+# mk_ustar_field($number, $size)
+#
+# Returns $number in a $size-byte numeric field in the format used by
+# the standard ustar archive header.
+sub mk_ustar_field {
+    my ($number, $size) = @_;
+    my ($len) = $size - 1;
+    my ($out) = sprintf ("%0${len}o", $number) . "\0";
+    die "$number: too large for $size-byte octal ustar field\n"
+      if length ($out) != $size;
+    return $out;
+}
+
+# calc_ustar_chksum($s)
+#
+# Calculates and returns the ustar checksum of 512-byte ustar archive
+# header $s.
+sub calc_ustar_chksum {
+    my ($s) = @_;
+    die if length ($s) != 512;
+    substr ($s, 148, 8, ' ' x 8);
+    return unpack ("%32a*", $s);
+}
+
+# put_scratch_file($src_file_name, $dst_file_name).
+#
+# Copies $src_file_name into the scratch disk for extraction as
+# $dst_file_name.
+sub put_scratch_file {
+    my ($src_file_name, $dst_file_name) = @_;
+    my ($disk_handle, $disk_file_name) = open_disk ($disks{SCRATCH});
+
+    print "Copying $src_file_name to scratch partition...\n";
+
+    # ustar format supports up to 100 characters for a file name, and
+    # even longer names given some common properties, but our code in
+    # the Pintos kernel only supports at most 99 characters.
+    die "$dst_file_name: name too long (max 99 characters)\n"
+      if length ($dst_file_name) > 99;
+
+    # Compose and write ustar header.
+    stat $src_file_name or die "$src_file_name: stat: $!\n";
+    my ($size) = -s _;
+    my ($header) = (pack ("a100", $dst_file_name)	# name
+		    . mk_ustar_field (0644, 8)		# mode
+		    . mk_ustar_field (0, 8)		# uid
+		    . mk_ustar_field (0, 8)		# gid
+		    . mk_ustar_field ($size, 12)	# size
+		    . mk_ustar_field (1136102400, 12)	# mtime
+		    . (' ' x 8)				# chksum
+		    . '0'				# typeflag
+		    . ("\0" x 100)			# linkname
+		    . "ustar\0"				# magic
+		    . "00"				# version
+		    . "root" . ("\0" x 28)		# uname
+		    . "root" . ("\0" x 28)		# gname
+		    . "\0" x 8				# devmajor
+		    . "\0" x 8				# devminor
+		    . ("\0" x 155))			# prefix
+                    . "\0" x 12;			# pad to 512 bytes
+    substr ($header, 148, 8) = mk_ustar_field (calc_ustar_chksum ($header), 8);
+    write_fully ($disk_handle, $disk_file_name, $header);
+
+    # Copy file data.
+    my ($put_handle);
+    sysopen ($put_handle, $src_file_name, O_RDONLY)
+      or die "$src_file_name: open: $!\n";
+    copy_file ($put_handle, $src_file_name, $disk_handle, $disk_file_name,
+	       $size);
+    die "$src_file_name: changed size while being read\n"
+      if $size != -s $put_handle;
+    close ($put_handle);
+
+    # Round up disk data to beginning of next sector.
+    write_fully ($disk_handle, $disk_file_name, "\0" x (512 - $size % 512))
+      if $size % 512;
+}
+
+# get_scratch_file($file).
+#
+# Copies from the scratch disk to $file.
+# Returns 1 if successful, 0 on failure.
+sub get_scratch_file {
+    my ($get_file_name) = @_;
+    my ($disk_handle, $disk_file_name) = open_disk ($disks{SCRATCH});
+
+    print "Copying $get_file_name out of $disk_file_name...\n";
+
+    # Read ustar header sector.
+    my ($header) = read_fully ($disk_handle, $disk_file_name, 512);
+    return "scratch disk tar archive ends unexpectedly"
+      if $header eq ("\0" x 512);
+
+    # Verify magic numbers.
+    return "corrupt ustar signature" if substr ($header, 257, 6) ne "ustar\0";
+    return "invalid ustar version" if substr ($header, 263, 2) ne '00';
+
+    # Verify checksum.
+    my ($chksum) = oct (unpack ("Z*", substr ($header, 148, 8)));
+    my ($correct_chksum) = calc_ustar_chksum ($header);
+    return "checksum mismatch" if $chksum != $correct_chksum;
+
+    # Get type.
+    my ($typeflag) = substr ($header, 156, 1);
+    return "not a regular file" if $typeflag ne '0' && $typeflag ne "\0";
+
+    # Get size.
+    my ($size) = oct (unpack ("Z*", substr ($header, 124, 12)));
+    return "bad size $size\n" if $size < 0;
+
+    # Copy file data.
+    my ($get_handle);
+    sysopen ($get_handle, $get_file_name, O_WRONLY | O_CREAT, 0666)
+      or die "$get_file_name: create: $!\n";
+    copy_file ($disk_handle, $disk_file_name, $get_handle, $get_file_name,
+	       $size);
+    close ($get_handle);
+
+    # Skip forward in disk up to beginning of next sector.
+    read_fully ($disk_handle, $disk_file_name, 512 - $size % 512)
+      if $size % 512;
+
+    return 0;
+}
+
+# Prepares the arguments to pass to the Pintos kernel,
+# and then write them into Pintos bootloader.
+sub prepare_arguments {
+    my (@args);
+    push (@args, shift (@kernel_args))
+      while @kernel_args && $kernel_args[0] =~ /^-/;
+    push (@args, 'extract') if @puts;
+    push (@args, @kernel_args);
+    push (@args, 'append', $_->[0]) foreach @gets;
+    write_cmd_line ($disks{OS}, @args);
+}
+
+# Writes @args into the Pintos bootloader at the beginning of $disk.
+sub write_cmd_line {
+    my ($disk, @args) = @_;
+
+    # Figure out command line to write.
+    my ($arg_cnt) = pack ("V", scalar (@args));
+    my ($args) = join ('', map ("$_\0", @args));
+    die "command line exceeds 128 bytes" if length ($args) > 128;
+    $args .= "\0" x (128 - length ($args));
+
+    # Write command line.
+    my ($handle, $file_name) = open_disk_copy ($disk);
+    print "Writing command line to $file_name...\n";
+    sysseek ($handle, 0x17a, 0) == 0x17a or die "$file_name: seek: $!\n";
+    syswrite ($handle, "$arg_cnt$args") or die "$file_name: write: $!\n";
+}
+
+# Running simulators.
+
+# Runs the selected simulator.
+sub run_vm {
+    if ($sim eq 'bochs') {
+	run_bochs ();
+    } elsif ($sim eq 'qemu') {
+	run_qemu ();
+    } elsif ($sim eq 'player') {
+	run_player ();
+    } else {
+	die "unknown simulator `$sim'\n";
+    }
+}
+
+# Runs Bochs.
+sub run_bochs {
+    # Select Bochs binary based on the chosen debugger.
+    my ($bin) = $debug eq 'monitor' ? 'bochs-dbg' : 'bochs';
+
+    my ($squish_pty);
+    if ($serial) {
+	$squish_pty = find_in_path ("squish-pty");
+	print "warning: can't find squish-pty, so terminal input will fail\n"
+	  if !defined $squish_pty;
+    }
+
+    # Write bochsrc.txt configuration file.
+    open (BOCHSRC, ">", "bochsrc.txt") or die "bochsrc.txt: create: $!\n";
+    print BOCHSRC <<EOF;
+romimage: file=\$BXSHARE/BIOS-bochs-latest
+vgaromimage: file=\$BXSHARE/VGABIOS-lgpl-latest
+boot: disk
+cpu: ips=1000000
+megs: $mem
+log: bochsout.txt
+panic: action=fatal
+EOF
+    print BOCHSRC "gdbstub: enabled=1\n" if $debug eq 'gdb';
+    if ($realtime) {
+	print BOCHSRC "clock: sync=realtime\n";
+    } else {
+	print BOCHSRC "clock: sync=none, time0=0\n";
+    }
+    print_bochs_disk_line ("ata0-master", 0);
+    print_bochs_disk_line ("ata0-slave", 1);
+    if (defined ($disks_by_iface[2]{FILE_NAME})
+	|| defined ($disks_by_iface[3]{FILE_NAME})) {
+	print BOCHSRC "ata1: enabled=1, ioaddr1=0x170, ",
+	  "ioaddr2=0x370, irq=15\n";
+	print_bochs_disk_line ("ata1-master", 2);
+	print_bochs_disk_line ("ata1-slave", 3);
+    }
+    if ($vga ne 'terminal') {
+	if ($serial) {
+	    my $mode = defined ($squish_pty) ? "term" : "file";
+	    print BOCHSRC "com1: enabled=1, mode=$mode, dev=/dev/stdout\n";
+	}
+	print BOCHSRC "display_library: nogui\n" if $vga eq 'none';
+    } else {
+	print BOCHSRC "display_library: term\n";
+    }
+    close (BOCHSRC);
+
+    # Compose Bochs command line.
+    my (@cmd) = ($bin, '-q');
+    unshift (@cmd, $squish_pty) if defined $squish_pty;
+    push (@cmd, '-j', $jitter) if defined $jitter;
+
+    # Run Bochs.
+    print join (' ', @cmd), "\n";
+    my ($exit) = xsystem (@cmd);
+    if (WIFEXITED ($exit)) {
+	# Bochs exited normally.
+	# Ignore the exit code; Bochs normally exits with status 1,
+	# which is weird.
+    } elsif (WIFSIGNALED ($exit)) {
+	die "Bochs died with signal ", WTERMSIG ($exit), "\n";
+    } else {
+	die "Bochs died: code $exit\n";
+    }
+}
+
+# print_bochs_disk_line($device, $iface)
+#
+# If IDE interface $iface has a disk attached, prints a bochsrc.txt
+# line for attaching it to $device.
+sub print_bochs_disk_line {
+    my ($device, $iface) = @_;
+    my ($disk) = $disks_by_iface[$iface];
+    my ($file) = $disk->{FILE_NAME};
+    if (defined $file) {
+	my (%geom) = disk_geometry ($disk);
+	print BOCHSRC "$device: type=disk, path=$file, mode=flat, ";
+	print BOCHSRC "cylinders=$geom{C}, heads=$geom{H}, spt=$geom{S}, ";
+	print BOCHSRC "translation=none\n";
+    }
+}
+
+# Runs QEMU.
+sub run_qemu {
+    print "warning: qemu doesn't support --terminal\n"
+      if $vga eq 'terminal';
+    print "warning: qemu doesn't support jitter\n"
+      if defined $jitter;
+    my (@cmd) = ('qemu');
+    for my $iface (0...3) {
+	my ($option) = ('-hda', '-hdb', '-hdc', '-hdd')[$iface];
+	push (@cmd, $option, $disks_by_iface[$iface]{FILE_NAME})
+	  if defined $disks_by_iface[$iface]{FILE_NAME};
+    }
+    push (@cmd, '-m', $mem);
+    push (@cmd, '-net', 'none');
+    push (@cmd, '-nographic') if $vga eq 'none';
+    push (@cmd, '-serial', 'stdio') if $serial && $vga ne 'none';
+    push (@cmd, '-S') if $debug eq 'monitor';
+    push (@cmd, '-s', '-S') if $debug eq 'gdb';
+    push (@cmd, '-monitor', 'null') if $vga eq 'none' && $debug eq 'none';
+    run_command (@cmd);
+}
+
+# player_unsup($flag)
+#
+# Prints a message that $flag is unsupported by VMware Player.
+sub player_unsup {
+    my ($flag) = @_;
+    print "warning: no support for $flag with VMware Player\n";
+}
+
+# Runs VMware Player.
+sub run_player {
+    player_unsup ("--$debug") if $debug ne 'none';
+    player_unsup ("--no-vga") if $vga eq 'none';
+    player_unsup ("--terminal") if $vga eq 'terminal';
+    player_unsup ("--jitter") if defined $jitter;
+    player_unsup ("--timeout"), undef $timeout if defined $timeout;
+    player_unsup ("--kill-on-failure"), undef $kill_on_failure
+      if defined $kill_on_failure;
+
+    # Memory size must be multiple of 4.
+    $mem = int (($mem + 3) / 4) * 4;
+
+    open (VMX, ">", "pintos.vmx") or die "pintos.vmx: create: $!\n";
+    chmod 0777 & ~umask, "pintos.vmx";
+    print VMX <<EOF;
+#! /usr/bin/vmware -G
+config.version = 8
+guestOS = "linux"
+memsize = $mem
+floppy0.present = FALSE
+usb.present = FALSE
+sound.present = FALSE
+gui.exitAtPowerOff = TRUE
+gui.exitOnCLIHLT = TRUE
+gui.powerOnAtStartUp = TRUE
+EOF
+
+
+
+    print VMX <<EOF if $serial;
+serial0.present = TRUE
+serial0.fileType = "pipe"
+serial0.fileName = "pintos.socket"
+serial0.pipe.endPoint = "client"
+serial0.tryNoRxLoss = "TRUE"
+EOF
+
+    for (my ($i) = 0; $i < 4; $i++) {
+	my ($disk) = $disks_by_iface[$i];
+	my ($dsk) = $disk->{FILE_NAME};
+	next if !defined $dsk;
+
+	my ($device) = "ide" . int ($i / 2) . ":" . ($i % 2);
+	my ($pln) = "$device.pln";
+	print VMX <<EOF;
+
+$device.present = TRUE
+$device.deviceType = "plainDisk"
+$device.fileName = "$pln"
+EOF
+
+	open (URANDOM, '<', '/dev/urandom') or die "/dev/urandom: open: $!\n";
+	my ($bytes);
+	sysread (URANDOM, $bytes, 4) == 4 or die "/dev/urandom: read: $!\n";
+	close (URANDOM);
+	my ($cid) = unpack ("L", $bytes);
+
+	my (%geom) = disk_geometry ($disk);
+	open (PLN, ">", $pln) or die "$pln: create: $!\n";
+	print PLN <<EOF;
+version=1
+CID=$cid
+parentCID=ffffffff
+createType="monolithicFlat"
+
+RW $geom{CAPACITY} FLAT "$dsk" 0
+
+# The Disk Data Base
+#DDB
+
+ddb.adapterType = "ide"
+ddb.virtualHWVersion = "4"
+ddb.toolsVersion = "2"
+ddb.geometry.cylinders = "$geom{C}"
+ddb.geometry.heads = "$geom{H}"
+ddb.geometry.sectors = "$geom{S}"
+EOF
+	close (PLN);
+    }
+    close (VMX);
+
+    my ($squish_unix);
+    if ($serial) {
+	$squish_unix = find_in_path ("squish-unix");
+	print "warning: can't find squish-unix, so terminal input ",
+	  "and output will fail\n" if !defined $squish_unix;
+    }
+
+    my ($vmx) = getcwd () . "/pintos.vmx";
+    my (@cmd) = ("vmplayer", $vmx);
+    unshift (@cmd, $squish_unix, "pintos.socket") if $squish_unix;
+    print join (' ', @cmd), "\n";
+    xsystem (@cmd);
+}
+
+# Disk utilities.
+
+# open_disk($disk)
+#
+# Opens $disk, if it is not already open, and returns its file handle
+# and file name.
+sub open_disk {
+    my ($disk) = @_;
+    if (!defined ($disk->{HANDLE})) {
+	if ($disk->{FILE_NAME}) {
+	    sysopen ($disk->{HANDLE}, $disk->{FILE_NAME}, O_RDWR)
+	      or die "$disk->{FILE_NAME}: open: $!\n";
+	} else {
+	    ($disk->{HANDLE}, $disk->{FILE_NAME}) = tempfile (UNLINK => 1,
+							     SUFFIX => '.dsk');
+	}
+    }
+    return ($disk->{HANDLE}, $disk->{FILE_NAME});
+}
+
+# open_disk_copy($disk)
+#
+# Makes a temporary copy of $disk and returns its file handle and file name.
+sub open_disk_copy {
+    my ($disk) = @_;
+    die if !$disk->{FILE_NAME};
+
+    my ($orig_handle, $orig_file_name) = open_disk ($disk);
+    my ($cp_handle, $cp_file_name) = tempfile (UNLINK => 1, SUFFIX => '.dsk');
+    copy_file ($orig_handle, $orig_file_name, $cp_handle, $cp_file_name,
+	       -s $orig_handle);
+    return ($disk->{HANDLE}, $disk->{FILE_NAME}) = ($cp_handle, $cp_file_name);
+}
+
+# extend_disk($disk, $size)
+#
+# Extends $disk, if necessary, so that it is at least $size bytes
+# long.
+sub extend_disk {
+    my ($disk, $size) = @_;
+    my ($handle, $file_name) = open_disk ($disk);
+    if (-s ($handle) < $size) {
+	sysseek ($handle, $size - 1, 0) == $size - 1
+	  or die "$file_name: seek: $!\n";
+	syswrite ($handle, "\0") == 1
+	  or die "$file_name: write: $!\n";
+    }
+}
+
+# disk_geometry($file)
+#
+# Examines $file and returns a valid IDE disk geometry for it, as a
+# hash.
+sub disk_geometry {
+    my ($disk) = @_;
+    my ($file) = $disk->{FILE_NAME};
+    my ($size) = -s $file;
+    die "$file: stat: $!\n" if !defined $size;
+    die "$file: size not a multiple of 512 bytes\n" if $size % 512;
+    my ($cyl_size) = 512 * 16 * 63;
+    my ($cylinders) = ceil ($size / $cyl_size);
+    extend_disk ($disk, $cylinders * $cyl_size) if $size % $cyl_size;
+
+    return (CAPACITY => $size / 512,
+	    C => $cylinders,
+	    H => 16,
+	    S => 63);
+}
+
+# copy_file($from_handle, $from_file_name, $to_handle, $to_file_name, $size)
+#
+# Copies $size bytes from $from_handle to $to_handle.
+# $from_file_name and $to_file_name are used in error messages.
+sub copy_file {
+    my ($from_handle, $from_file_name, $to_handle, $to_file_name, $size) = @_;
+
+    while ($size > 0) {
+	my ($chunk_size) = 4096;
+	$chunk_size = $size if $chunk_size > $size;
+	$size -= $chunk_size;
+
+	my ($data) = read_fully ($from_handle, $from_file_name, $chunk_size);
+	write_fully ($to_handle, $to_file_name, $data);
+    }
+}
+
+# read_fully($handle, $file_name, $bytes)
+#
+# Reads exactly $bytes bytes from $handle and returns the data read.
+# $file_name is used in error messages.
+sub read_fully {
+    my ($handle, $file_name, $bytes) = @_;
+    my ($data);
+    my ($read_bytes) = sysread ($handle, $data, $bytes);
+    die "$file_name: read: $!\n" if !defined $read_bytes;
+    die "$file_name: unexpected end of file\n" if $read_bytes != $bytes;
+    return $data;
+}
+
+# write_fully($handle, $file_name, $data)
+#
+# Write $data to $handle.
+# $file_name is used in error messages.
+sub write_fully {
+    my ($handle, $file_name, $data) = @_;
+    my ($written_bytes) = syswrite ($handle, $data);
+    die "$file_name: write: $!\n" if !defined $written_bytes;
+    die "$file_name: short write\n" if $written_bytes != length $data;
+}
+
+# Subprocess utilities.
+
+# run_command(@args)
+#
+# Runs xsystem(@args).
+# Also prints the command it's running and checks that it succeeded.
+sub run_command {
+    print join (' ', @_), "\n";
+    die "command failed\n" if xsystem (@_);
+}
+
+# xsystem(@args)
+#
+# Creates a subprocess via exec(@args) and waits for it to complete.
+# Relays common signals to the subprocess.
+# If $timeout is set then the subprocess will be killed after that long.
+sub xsystem {
+    # QEMU turns off local echo and does not restore it if killed by a signal.
+    # We compensate by restoring it ourselves.
+    my $cleanup = sub {};
+    if (isatty (0)) {
+	my $termios = POSIX::Termios->new;
+	$termios->getattr (0);
+	$cleanup = sub { $termios->setattr (0, &POSIX::TCSANOW); }
+    }
+
+    # Create pipe for filtering output.
+    pipe (my $in, my $out) or die "pipe: $!\n" if $kill_on_failure;
+
+    my ($pid) = fork;
+    if (!defined ($pid)) {
+	# Fork failed.
+	die "fork: $!\n";
+    } elsif (!$pid) {
+	# Running in child process.
+	dup2 (fileno ($out), STDOUT_FILENO) or die "dup2: $!\n"
+	  if $kill_on_failure;
+	exec_setitimer (@_);
+    } else {
+	# Running in parent process.
+	close $out if $kill_on_failure;
+
+	my ($cause);
+	local $SIG{ALRM} = sub { timeout ($pid, $cause, $cleanup); };
+	local $SIG{INT} = sub { relay_signal ($pid, "INT", $cleanup); };
+	local $SIG{TERM} = sub { relay_signal ($pid, "TERM", $cleanup); };
+	alarm ($timeout * get_load_average () + 1) if defined ($timeout);
+
+	if ($kill_on_failure) {
+	    # Filter output.
+	    my ($buf) = "";
+	    my ($boots) = 0;
+	    local ($|) = 1;
+	    for (;;) {
+		if (waitpid ($pid, WNOHANG) != 0) {
+		    # Subprocess died.  Pass through any remaining data.
+		    print $buf while sysread ($in, $buf, 4096) > 0;
+		    last;
+		}
+
+		# Read and print out pipe data.
+		my ($len) = length ($buf);
+		waitpid ($pid, 0), last
+		  if sysread ($in, $buf, 4096, $len) <= 0;
+		print substr ($buf, $len);
+
+		# Remove full lines from $buf and scan them for keywords.
+		while ((my $idx = index ($buf, "\n")) >= 0) {
+		    local $_ = substr ($buf, 0, $idx + 1, '');
+		    next if defined ($cause);
+		    if (/(Kernel PANIC|User process ABORT)/ ) {
+			$cause = "\L$1\E";
+			alarm (5);
+		    } elsif (/Pintos booting/ && ++$boots > 1) {
+			$cause = "triple fault";
+			alarm (5);
+		    } elsif (/FAILED/) {
+			$cause = "test failure";
+			alarm (5);
+		    }
+		}
+	    }
+	} else {
+	    waitpid ($pid, 0);
+	}
+	alarm (0);
+	&$cleanup ();
+
+	if (WIFSIGNALED ($?) && WTERMSIG ($?) == SIGVTALRM ()) {
+	    seek (STDOUT, 0, 2);
+	    print "\nTIMEOUT after $timeout seconds of host CPU time\n";
+	    exit 0;
+	}
+
+	return $?;
+    }
+}
+
+# relay_signal($pid, $signal, &$cleanup)
+#
+# Relays $signal to $pid and then reinvokes it for us with the default
+# handler.  Also cleans up temporary files and invokes $cleanup.
+sub relay_signal {
+    my ($pid, $signal, $cleanup) = @_;
+    kill $signal, $pid;
+    eval { File::Temp::cleanup() };	# Not defined in old File::Temp.
+    &$cleanup ();
+    $SIG{$signal} = 'DEFAULT';
+    kill $signal, getpid ();
+}
+
+# timeout($pid, $cause, &$cleanup)
+#
+# Interrupts $pid and dies with a timeout error message,
+# after invoking $cleanup.
+sub timeout {
+    my ($pid, $cause, $cleanup) = @_;
+    kill "INT", $pid;
+    waitpid ($pid, 0);
+    &$cleanup ();
+    seek (STDOUT, 0, 2);
+    if (!defined ($cause)) {
+	my ($load_avg) = `uptime` =~ /(load average:.*)$/i;
+	print "\nTIMEOUT after ", time () - $start_time,
+	  " seconds of wall-clock time";
+	print  " - $load_avg" if defined $load_avg;
+	print "\n";
+    } else {
+	print "Simulation terminated due to $cause.\n";
+    }
+    exit 0;
+}
+
+# Returns the system load average over the last minute.
+# If the load average is less than 1.0 or cannot be determined, returns 1.0.
+sub get_load_average {
+    my ($avg) = `uptime` =~ /load average:\s*([^,]+),/;
+    return $avg >= 1.0 ? $avg : 1.0;
+}
+
+# Calls setitimer to set a timeout, then execs what was passed to us.
+sub exec_setitimer {
+    if (defined $timeout) {
+	if ($ ge 5.8.0) {
+	    eval "
+              use Time::HiRes qw(setitimer ITIMER_VIRTUAL);
+              setitimer (ITIMER_VIRTUAL, $timeout, 0);
+            ";
+	} else {
+	    { exec ("setitimer-helper", $timeout, @_); };
+	    exit 1 if !$!{ENOENT};
+	    print STDERR "warning: setitimer-helper is not installed, so ",
+	      "CPU time limit will not be enforced\n";
+	}
+    }
+    exec (@_);
+    exit (1);
+}
+
+sub SIGVTALRM {
+    use Config;
+    my $i = 0;
+    foreach my $name (split(' ', $Config{sig_name})) {
+	return $i if $name eq 'VTALRM';
+	$i++;
+    }
+    return 0;
+}
+
+# find_in_path ($program)
+#
+# Searches for $program in $ENV{PATH}.
+# Returns $program if found, otherwise undef.
+sub find_in_path {
+    my ($program) = @_;
+    -x "$_/$program" and return $program foreach split (':', $ENV{PATH});
+    return;
+}
