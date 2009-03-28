@@ -1,0 +1,33 @@
+==================================
+This is the README file for the pintos curriculum project
+++++++++++++++++++++++++++++++++++
+Copyright by Christopher K. Xu
+
+All source code used in the project are for curriculum use only.
+All source code and documentation are NOT free to copy without a writing permission.
+
+This project has brought code from other projects, such as the original pintos projects.
+See LICENSE for license information for these projects.
+++++++++++++++++++++++++++++++++++
+
+Project 1: Threads
+
+Requirements:
+
+1) Alarm Clock
+   * Re-implement timer_sleep() in devices/timer.c
+   * No busy-waiting
+2) Priority-Based Scheduling
+   * Implement priority scheduling
+   * Implement priority donation for locks
+   * Implement set/get priority functions
+3) Advanced Scheduling
+   * Implement 4.4BSD Scheduler
+
+Changelogs:
+
+SAT, Mar 28, 2009
+git repo initialized
+project1 branched
+
+==================================
