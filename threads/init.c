@@ -21,6 +21,9 @@
 #include "threads/palloc.h"
 #include "threads/pte.h"
 #include "threads/thread.h"
+/* My Implementation */
+#include "threads/alarm.h"
+/* == My Implementation */
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "userprog/exception.h"
@@ -82,6 +85,10 @@ main (void)
   /* Initialize ourselves as a thread so we can use locks,
      then enable console locking. */
   thread_init ();
+  
+  /* My Implementation */
+alarm_init ();
+  /* == My Implementation */
   console_init ();  
 
   /* Greet user. */
