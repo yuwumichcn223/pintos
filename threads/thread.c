@@ -1,4 +1,7 @@
 #include "threads/thread.h"
+/* My Implementation */
+#include "threads/alarm.h"
+/* == My Implementation */
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -562,6 +565,10 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
+
+  /* My Implementation */
+  alarm_check ();
+  /* == My Implementation */
 
   if (cur != next)
     prev = switch_threads (cur, next);

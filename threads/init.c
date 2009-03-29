@@ -87,7 +87,7 @@ main (void)
   thread_init ();
   
   /* My Implementation */
-alarm_init ();
+  alarm_init ();
   /* == My Implementation */
   console_init ();  
 

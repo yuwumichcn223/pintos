@@ -16,11 +16,14 @@ struct alarm
     struct thread *thrd; /* the waiting thread */
     
     struct list_elem elem; /* list element */
+    
+    unsigned magic; /* alarm magic */
   };
   
-void alarm_init(void); /* init the alarm list */
+void alarm_init (void); /* init the alarm list */
 
-struct alarm* set_alarm(int64_t ticks); /* set alarm for current thread */
-void dismiss_alarm(struct alarm*); /* dismiss the alarm */
+void set_alarm (int64_t); /* set alarm for current thread */
+
+void alarm_check (void); /* check all the alarms in the list, and wake'em up if time's up */
 
 #endif /* THREADS_ALARM_H */

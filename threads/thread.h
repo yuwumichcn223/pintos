@@ -5,6 +5,10 @@
 #include <list.h>
 #include <stdint.h>
 
+/* My Implementation */
+#include "threads/alarm.h"
+/* == My Implementation */
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -92,7 +96,11 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    
+    /* My Implementation */
+    struct alarm alrm;                  /* alarm object */
+    /* == My Implementation */
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
