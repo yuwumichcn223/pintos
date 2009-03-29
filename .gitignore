@@ -1,5 +1,6 @@
 *cvs*
 *CVS*
-./**/build
+**/build
+**/bochs*
 .cvsignore
 ./**/CVS
