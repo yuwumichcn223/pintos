@@ -36,7 +36,6 @@ set_alarm (int64_t t)
 {
   struct thread *thrd;
   struct alarm *alrm;
-  enum intr_level old_level;
   
   thrd = thread_current (); /* the current thread */
   
@@ -50,18 +49,19 @@ set_alarm (int64_t t)
   
   alrm->thrd = thrd;
   
-  alrm->ticks = t; /* set the tick count to t */
+  alrm->ticks = t + timer_ticks (); /* set the tick count to t plus current timer ticks */
   alrm->magic = ALARM_MAGIC;
   
   /* add to alarm_list, critical section */
-  old_level = intr_disable ();
+  intr_disable ();
   list_push_back (&alarm_list, &alrm->elem);
   
   /* block the thread */
   thread_block ();
-  intr_set_level (old_level);
+  intr_enable ();
 }
 
+/* Check if the alrm is actually an alarm */
 static bool
 is_alarm (struct alarm *alrm)
 {
@@ -76,11 +76,11 @@ dismiss_alarm (struct alarm *alrm)
   
   ASSERT (is_alarm (alrm));
   
-  thread_unblock (alrm->thrd); /* unblock the thread */
-  
   /* remove from alarm_list, critical section */
   old_level = intr_disable ();
   list_remove (&alrm->elem);
+  
+  thread_unblock (alrm->thrd); /* unblock the thread */
   intr_set_level (old_level);
 }
 
@@ -91,23 +91,17 @@ alarm_check (void)
   struct list_elem *tmp, *next;
   struct alarm *alrm;
   
-  curr_ticks = timer_ticks ();
-  diff = curr_ticks - prev_ticks;
-  
   tmp = list_begin (&alarm_list);
   
   while (tmp != list_end (&alarm_list))
-    {
+    { 
       alrm = list_entry (tmp, struct alarm, elem);
-      alrm->ticks -= diff;
       next = list_next (tmp);
-      if (alrm->ticks <= 0)
+      if (alrm->ticks <= timer_ticks ())
         {
           dismiss_alarm (alrm);
           list_remove (tmp);
         }
       tmp = next;
     }
-  
-  prev_ticks = curr_ticks;
 }

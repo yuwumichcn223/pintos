@@ -566,13 +566,13 @@ schedule (void)
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
 
-  /* My Implementation */
-  alarm_check ();
-  /* == My Implementation */
-
   if (cur != next)
     prev = switch_threads (cur, next);
   schedule_tail (prev); 
+  
+  /* My Implementation */
+  alarm_check ();
+  /* == My Implementation */
 }
 
 /* Returns a tid to use for a new thread. */
