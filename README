@@ -44,6 +44,14 @@ modified threads/thread.h
 modified devices/timer.c
 modified Makefile.build
 
+*****************
+
+TUE, Mar 31, 2009
+Implementing basic priority scheduling
+added sort functions to ready_list
+
+modified threads/thread.c
+
 Test Results(against previous):
 -------------
 (=) pass tests/threads/alarm-single

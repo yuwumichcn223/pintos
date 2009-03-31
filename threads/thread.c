@@ -74,6 +74,14 @@ static void schedule (void);
 void schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+/* My Implementation */
+static void sort_ready_list (void);
+static bool thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static bool thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static bool thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+/* == My Implementation */
+
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -588,6 +596,58 @@ allocate_tid (void)
 
   return tid;
 }
+
+/* My Implemenatation */
+
+/* Tell list_sort how to sort the ready list,
+ * We keep the thread who has outstanding priority at the head of the list
+ * And the sort is stable
+ */
+static bool
+thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct thread *a, *b;
+  
+  ASSERT (lhs != NULL && rhs != NULL);
+  
+  a = list_entry (lhs, struct thread, elem);
+  b = list_entry (rhs, struct thread, elem);
+  
+  return (a->priority >= b->priority);
+}
+
+/* put the threads who has outstanding priority to the head of the list */
+static void
+sort_ready_list (void)
+{
+  if (list_empty (&ready_list))
+    return;
+
+  list_sort (&ready_list, thread_sort_less, NULL);
+}
+
+/* same as thread_sort_less but use > instead of >= */
+static bool
+thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct thread *a, *b;
+  
+  ASSERT (lhs != NULL && rhs != NULL);
+  
+  a = list_entry (lhs, struct thread, elem);
+  b = list_entry (rhs, struct thread, elem);
+  
+  return (a->priority > b->priority);
+}
+
+/* same as thread_sort_less */
+static bool
+thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  return thread_sort_less (lhs, rhs, NULL);
+}
+
+/* == My Implementation */
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
