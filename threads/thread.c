@@ -219,7 +219,12 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  
+  /* My Implementation */
+  if (priority > thread_current ()->priority)
+    thread_yield ();
+  /* == My Implementation */
+  
   return tid;
 }
 
@@ -256,7 +261,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  /* Old Implementation
+  list_push_back (&ready_list, &t->elem); */
+  /* My Implementation */
+  list_insert_ordered (&ready_list, &t->elem, thread_insert_less_tail, NULL);
+  /* == My Implementation */
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -326,8 +335,12 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread)
+    /* Old Implementation
+    list_push_back (&ready_list, &cur->elem); */
+    /* My Implementation */
+    list_insert_ordered (&ready_list, &cur->elem, thread_insert_less_tail, NULL);
+    /* ==My Implementation */
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -354,7 +367,27 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  /* Old Implementation
+  thread_current ()->priority = new_priority; */
+  
+  /* My Implementation */
+  struct thread *curr;
+  
+  (curr = thread_current ())->priority = new_priority;
+  
+  if (curr->status == THREAD_READY) /* Re-order the ready-list */
+    {
+      list_remove (&curr->elem);
+      list_insert_ordered (&ready_list, &curr->elem, thread_insert_less_tail, NULL);
+    }
+  else if (curr->status == THREAD_RUNNING)
+    {
+      if (list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
+      {
+        thread_yield (); /* preempt the current thread */
+      }
+    }
+  /* == My Implementation */
 }
 
 /* Returns the current thread's priority. */
@@ -503,7 +536,7 @@ alloc_frame (struct thread *t, size_t size)
    idle_thread. */
 static struct thread *
 next_thread_to_run (void) 
-{
+{ 
   if (list_empty (&ready_list))
     return idle_thread;
   else
