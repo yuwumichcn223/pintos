@@ -222,7 +222,7 @@ thread_create (const char *name, int priority,
   
   /* My Implementation */
   if (priority > thread_current ()->priority)
-    thread_yield ();
+    thread_yield (); /* This is not a very good idea, but it should work */
   /* == My Implementation */
   
   return tid;
@@ -340,7 +340,7 @@ thread_yield (void)
     list_push_back (&ready_list, &cur->elem); */
     /* My Implementation */
     list_insert_ordered (&ready_list, &cur->elem, thread_insert_less_tail, NULL);
-    /* ==My Implementation */
+    /* == My Implementation */
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -373,7 +373,15 @@ thread_set_priority (int new_priority)
   /* My Implementation */
   struct thread *curr;
   
-  (curr = thread_current ())->priority = new_priority;
+  curr = thread_current ();
+  
+  /* New priority will be set to base priority, aka before_donate, not the current priority,
+   * if they are not the same value
+   */
+  if (curr->before_donate != curr->priority)
+    curr->before_donate = new_priority;
+  else
+    curr->before_donate = curr->priority = new_priority;
   
   if (curr->status == THREAD_READY) /* Re-order the ready-list */
     {
@@ -384,7 +392,7 @@ thread_set_priority (int new_priority)
     {
       if (list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
       {
-        thread_yield (); /* preempt the current thread */
+        thread_yield (); /* preempt the current thread, but a simply yield is not a good idea, anyway it should work */
       }
     }
   /* == My Implementation */
@@ -511,7 +519,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
+  /* Old Implementation
+  t->priority = priority; */
+  /* My Implementation */
+  t->before_donate = t->priority = priority;
+  /* == My Implementation */
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }

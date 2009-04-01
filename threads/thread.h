@@ -99,6 +99,7 @@ struct thread
     
     /* My Implementation */
     struct alarm alrm;                  /* alarm object */
+    int before_donate;                  /* priority before donate, if nobody donates, then it should be same as priority */
     /* == My Implementation */
     
 #ifdef USERPROG
