@@ -112,6 +112,10 @@ sema_up (struct semaphore *sema)
 
   ASSERT (sema != NULL);
 
+  /* My Implementation */
+  sort_thread_list (&sema->waiters);
+  /* My Implementation */
+
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
@@ -196,6 +200,11 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  /* My Implementation */
+  if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
+    thread_set_priority_other (lock->holder, thread_current ()->priority);
+  /* == My Implementation */
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }
@@ -233,6 +242,11 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  
+  /* My Implementation */
+  thread_set_priority (thread_current ()->base_priority);
+  /* == My Implementation */
+  
 }
 
 /* Returns true if the current thread holds LOCK, false

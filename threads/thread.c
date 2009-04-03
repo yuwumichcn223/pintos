@@ -75,10 +75,10 @@ void schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
 /* My Implementation */
-static void sort_ready_list (void);
 static bool thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static void thread_yield_head (struct thread *cur);
 /* == My Implementation */
 
 
@@ -222,7 +222,7 @@ thread_create (const char *name, int priority,
   
   /* My Implementation */
   if (priority > thread_current ()->priority)
-    thread_yield (); /* This is not a very good idea, but it should work */
+    thread_yield_head (thread_current ()); 
   /* == My Implementation */
   
   return tid;
@@ -346,6 +346,27 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
+/* My Implementation */
+static void
+thread_yield_head (struct thread *cur)
+{
+  enum intr_level old_level;
+  
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  if (cur != idle_thread)
+    /* Old Implementation
+    list_push_back (&ready_list, &cur->elem); */
+    /* My Implementation */
+    list_insert_ordered (&ready_list, &cur->elem, thread_insert_less_head, NULL);
+    /* == My Implementation */
+  cur->status = THREAD_READY;
+  schedule ();
+  intr_set_level (old_level);
+}
+/* == My Implementation */
+
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void
@@ -371,32 +392,30 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority; */
   
   /* My Implementation */
-  struct thread *curr;
-  
-  curr = thread_current ();
-  
-  /* New priority will be set to base priority, aka before_donate, not the current priority,
-   * if they are not the same value
-   */
-  if (curr->before_donate != curr->priority)
-    curr->before_donate = new_priority;
-  else
-    curr->before_donate = curr->priority = new_priority;
+  thread_set_priority_other (thread_current (), new_priority);
+  /* == My Implementation */
+}
+
+/* My Implementation
+ * New priority will be set to base priority, aka before_donate, not the current priority,
+ * if they are not the same value
+ */
+void
+thread_set_priority_other (struct thread *curr, int new_priority)
+{
+  curr->priority = new_priority;
   
   if (curr->status == THREAD_READY) /* Re-order the ready-list */
     {
       list_remove (&curr->elem);
       list_insert_ordered (&ready_list, &curr->elem, thread_insert_less_tail, NULL);
     }
-  else if (curr->status == THREAD_RUNNING)
+  if (curr->status == THREAD_RUNNING && list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
     {
-      if (list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
-      {
-        thread_yield (); /* preempt the current thread, but a simply yield is not a good idea, anyway it should work */
-      }
+      thread_yield_head (curr);
     }
-  /* == My Implementation */
 }
+/* == My Implementation */
 
 /* Returns the current thread's priority. */
 int
@@ -522,7 +541,7 @@ init_thread (struct thread *t, const char *name, int priority)
   /* Old Implementation
   t->priority = priority; */
   /* My Implementation */
-  t->before_donate = t->priority = priority;
+  t->base_priority = t->priority = priority;
   /* == My Implementation */
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
@@ -662,13 +681,13 @@ thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void
 }
 
 /* put the threads who has outstanding priority to the head of the list */
-static void
-sort_ready_list (void)
+void
+sort_thread_list (struct list *l)
 {
-  if (list_empty (&ready_list))
+  if (list_empty (l))
     return;
 
-  list_sort (&ready_list, thread_sort_less, NULL);
+  list_sort (l, thread_sort_less, NULL);
 }
 
 /* same as thread_sort_less but use > instead of >= */

@@ -99,7 +99,7 @@ struct thread
     
     /* My Implementation */
     struct alarm alrm;                  /* alarm object */
-    int before_donate;                  /* priority before donate, if nobody donates, then it should be same as priority */
+    int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
     /* == My Implementation */
     
 #ifdef USERPROG
@@ -138,6 +138,11 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+
+/* My Implementation */
+void sort_thread_list (struct list *l);
+void thread_set_priority_other (struct thread *curr, int new_priority);
+/* == My Implementation */
 
 int thread_get_priority (void);
 void thread_set_priority (int);
