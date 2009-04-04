@@ -32,6 +32,10 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+/* My Implementation */
+static bool outstanding_priority (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+/* == My Implementation */
+
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -202,11 +206,19 @@ lock_acquire (struct lock *lock)
 
   /* My Implementation */
   if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
-    thread_set_priority_other (lock->holder, thread_current ()->priority);
+    {
+      thread_set_priority_other (lock->holder, thread_current ()->priority);
+      lock->lock_priority = thread_current ()->priority;
+    }
   /* == My Implementation */
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+  
+  /* My Implementation */
+  list_push_back (&lock->holder->locks, &lock->holder_elem);
+  /* == My Implementation */
+  
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -237,6 +249,13 @@ lock_try_acquire (struct lock *lock)
 void
 lock_release (struct lock *lock) 
 {
+  /* My Implementation */
+  struct thread *curr;
+  struct list_elem *l;
+  struct lock *another;
+  curr = thread_current ();
+  /* == My Implementation */
+  
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
@@ -244,10 +263,31 @@ lock_release (struct lock *lock)
   sema_up (&lock->semaphore);
   
   /* My Implementation */
-  thread_set_priority (thread_current ()->base_priority);
+  list_remove (&lock->holder_elem);
+  if (list_empty (&curr->locks))
+    thread_set_priority (curr->base_priority);
+  else
+    {
+      l = list_max (&curr->locks, outstanding_priority, NULL);
+      another = list_entry (l, struct lock, holder_elem);
+      thread_set_priority (another->lock_priority);
+    }
   /* == My Implementation */
   
 }
+
+/* My Implementation */
+static bool
+outstanding_priority (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct lock *l1, *l2;
+  
+  l1 = list_entry (lhs, struct lock, holder_elem);
+  l2 = list_entry (rhs, struct lock, holder_elem);
+  
+  return (l1->lock_priority > l2->lock_priority);
+}
+/* == My Implementation */
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds

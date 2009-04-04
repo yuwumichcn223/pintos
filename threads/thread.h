@@ -100,6 +100,7 @@ struct thread
     /* My Implementation */
     struct alarm alrm;                  /* alarm object */
     int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
+    struct list locks;                  /* the list of locks that it holds */
     /* == My Implementation */
     
 #ifdef USERPROG
