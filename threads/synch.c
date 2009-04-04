@@ -187,6 +187,9 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+  /* My Implementation */
+  lock->lock_priority = PRI_MIN;
+  /* == My Implementation */
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -208,6 +211,9 @@ lock_acquire (struct lock *lock)
   if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
     {
       thread_set_priority_other (lock->holder, thread_current ()->priority);
+    }
+  if (lock->lock_priority < thread_current ()->priority)
+    {
       lock->lock_priority = thread_current ()->priority;
     }
   /* == My Implementation */
@@ -266,7 +272,7 @@ lock_release (struct lock *lock)
   list_remove (&lock->holder_elem);
   if (list_empty (&curr->locks))
     thread_set_priority (curr->base_priority);
-  else
+  else /* Still holding locks */
     {
       l = list_max (&curr->locks, outstanding_priority, NULL);
       another = list_entry (l, struct lock, holder_elem);
@@ -285,7 +291,7 @@ outstanding_priority (const struct list_elem *lhs, const struct list_elem *rhs, 
   l1 = list_entry (lhs, struct lock, holder_elem);
   l2 = list_entry (rhs, struct lock, holder_elem);
   
-  return (l1->lock_priority > l2->lock_priority);
+  return (l1->lock_priority < l2->lock_priority);
 }
 /* == My Implementation */
 
