@@ -58,23 +58,34 @@ FRI, Apr 03, 2009
 Implementing donation
 Re-implementing thread_set_priority
 
+*****************
+
+SAT, Apr 04, 2009
+Implemented multiple donation
+Passed priority-donate-multiple and priority-donate-multiple2
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+modified threads/synch.h
+
 Test Results(against previous):
 -------------
 (=) pass tests/threads/alarm-single
 (=) pass tests/threads/alarm-multiple
 (=) FAIL tests/threads/alarm-simultaneous
-(+) pass tests/threads/alarm-priority
+(=) pass tests/threads/alarm-priority
 (=) pass tests/threads/alarm-zero
 (=) pass tests/threads/alarm-negative
-(+) pass tests/threads/priority-change
-(+) pass tests/threads/priority-donate-one
-(=) FAIL tests/threads/priority-donate-multiple
-(=) FAIL tests/threads/priority-donate-multiple2
+(=) pass tests/threads/priority-change
+(=) pass tests/threads/priority-donate-one
+(+) pass tests/threads/priority-donate-multiple
+(+) pass tests/threads/priority-donate-multiple2
 (=) FAIL tests/threads/priority-donate-nest
 (=) FAIL tests/threads/priority-donate-sema
 (=) FAIL tests/threads/priority-donate-lower
 (=) FAIL tests/threads/priority-fifo
-(+) pass tests/threads/priority-preempt
+(=) pass tests/threads/priority-preempt
 (=) FAIL tests/threads/priority-sema
 (=) FAIL tests/threads/priority-condvar
 (=) FAIL tests/threads/priority-donate-chain
@@ -82,11 +93,11 @@ Test Results(against previous):
 (=) FAIL tests/threads/mlfqs-load-60
 (=) FAIL tests/threads/mlfqs-load-avg
 (=) FAIL tests/threads/mlfqs-recent-1
-(-) FAIL tests/threads/mlfqs-fair-2
-(-) FAIL tests/threads/mlfqs-fair-20
+(=) FAIL tests/threads/mlfqs-fair-2
+(=) FAIL tests/threads/mlfqs-fair-20
 (=) FAIL tests/threads/mlfqs-nice-2
 (=) FAIL tests/threads/mlfqs-nice-10
 (=) FAIL tests/threads/mlfqs-block
-19 of 27 tests failed.
+17 of 27 tests failed.
 
 ==================================
