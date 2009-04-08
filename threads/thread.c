@@ -78,7 +78,6 @@ static tid_t allocate_tid (void);
 static bool thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
-static void thread_yield_head (struct thread *cur);
 /* == My Implementation */
 
 
@@ -346,7 +345,7 @@ thread_yield (void)
 }
 
 /* My Implementation */
-static void
+void
 thread_yield_head (struct thread *cur)
 {
   enum intr_level old_level;
@@ -396,13 +395,15 @@ thread_set_priority (int new_priority)
 }
 
 /* My Implementation
- * New priority will be set to base priority, aka before_donate, not the current priority,
  * if they are not the same value
  */
 void
 thread_set_priority_other (struct thread *curr, int new_priority)
 {
-  curr->priority = new_priority;
+  if (!curr->donated)
+    curr->priority = curr->base_priority = new_priority;
+  else
+    curr->priority = new_priority;
   
   if (curr->status == THREAD_READY) /* Re-order the ready-list */
     {
@@ -541,6 +542,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority; */
   /* My Implementation */
   t->base_priority = t->priority = priority;
+  t->donated = false;
   list_init (&t->locks);
   /* == My Implementation */
   t->magic = THREAD_MAGIC;

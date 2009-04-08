@@ -101,6 +101,7 @@ struct thread
     struct alarm alrm;                  /* alarm object */
     int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
     struct list locks;                  /* the list of locks that it holds */
+    bool donated;                       /* whether the thread has been donated priority */
     /* == My Implementation */
     
 #ifdef USERPROG
@@ -143,6 +144,7 @@ void thread_foreach (thread_action_func *, void *);
 /* My Implementation */
 void sort_thread_list (struct list *l);
 void thread_set_priority_other (struct thread *curr, int new_priority);
+void thread_yield_head (struct thread *curr);
 /* == My Implementation */
 
 int thread_get_priority (void);

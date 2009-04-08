@@ -112,19 +112,37 @@ sema_try_down (struct semaphore *sema)
 void
 sema_up (struct semaphore *sema) 
 {
+  /* My Implementation */
+  struct thread *wake_up, *curr;
+  /* == My Implementation */
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
 
   /* My Implementation */
+  wake_up = NULL;
+  curr = thread_current ();
   sort_thread_list (&sema->waiters);
   /* My Implementation */
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
+    /* Old Implementation 
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+                                struct thread, elem)); */
+    /* My Implementation */
+    {
+      wake_up = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
+      thread_unblock (wake_up);
+    }
+    /* == My Implementation */
   sema->value++;
+  
+  /* My Implementation */
+  if (wake_up != NULL && wake_up->priority > curr->priority)
+    thread_yield_head (curr);
+  /* == My Implementation */
+  
   intr_set_level (old_level);
 }
 
@@ -210,6 +228,7 @@ lock_acquire (struct lock *lock)
   /* My Implementation */
   if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
     {
+      lock->holder->donated = true;
       thread_set_priority_other (lock->holder, thread_current ()->priority);
     }
   if (lock->lock_priority < thread_current ()->priority)
@@ -271,7 +290,10 @@ lock_release (struct lock *lock)
   /* My Implementation */
   list_remove (&lock->holder_elem);
   if (list_empty (&curr->locks))
-    thread_set_priority (curr->base_priority);
+    {
+      thread_set_priority (curr->base_priority);
+      curr->donated = false;
+    }
   else /* Still holding locks */
     {
       l = list_max (&curr->locks, outstanding_priority, NULL);
