@@ -69,6 +69,13 @@ modified threads/thread.h
 modified threads/synch.c
 modified threads/synch.h
 
+WED, Apr 08, 2009
+Implemented priority for semaphores
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+
 Test Results(against previous):
 -------------
 (=) pass tests/threads/alarm-single
@@ -79,14 +86,14 @@ Test Results(against previous):
 (=) pass tests/threads/alarm-negative
 (=) pass tests/threads/priority-change
 (=) pass tests/threads/priority-donate-one
-(+) pass tests/threads/priority-donate-multiple
-(+) pass tests/threads/priority-donate-multiple2
+(=) pass tests/threads/priority-donate-multiple
+(=) pass tests/threads/priority-donate-multiple2
 (=) FAIL tests/threads/priority-donate-nest
-(=) FAIL tests/threads/priority-donate-sema
+(+) pass tests/threads/priority-donate-sema
 (=) FAIL tests/threads/priority-donate-lower
 (=) FAIL tests/threads/priority-fifo
 (=) pass tests/threads/priority-preempt
-(=) FAIL tests/threads/priority-sema
+(+) pass tests/threads/priority-sema
 (=) FAIL tests/threads/priority-condvar
 (=) FAIL tests/threads/priority-donate-chain
 (=) FAIL tests/threads/mlfqs-load-1
@@ -98,6 +105,6 @@ Test Results(against previous):
 (=) FAIL tests/threads/mlfqs-nice-2
 (=) FAIL tests/threads/mlfqs-nice-10
 (=) FAIL tests/threads/mlfqs-block
-17 of 27 tests failed.
+15 of 27 tests failed.
 
 ==================================
