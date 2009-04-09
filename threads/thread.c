@@ -390,7 +390,7 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority; */
   
   /* My Implementation */
-  thread_set_priority_other (thread_current (), new_priority);
+  thread_set_priority_other (thread_current (), new_priority, true);
   /* == My Implementation */
 }
 
@@ -398,10 +398,17 @@ thread_set_priority (int new_priority)
  * if they are not the same value
  */
 void
-thread_set_priority_other (struct thread *curr, int new_priority)
+thread_set_priority_other (struct thread *curr, int new_priority, bool forced)
 {
   if (!curr->donated)
     curr->priority = curr->base_priority = new_priority;
+  else if (forced)
+    {
+      if (curr->priority > new_priority)
+        curr->base_priority = new_priority;
+      else
+        curr->priority = new_priority;
+    }
   else
     curr->priority = new_priority;
   

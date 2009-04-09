@@ -229,7 +229,7 @@ lock_acquire (struct lock *lock)
   if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
     {
       lock->holder->donated = true;
-      thread_set_priority_other (lock->holder, thread_current ()->priority);
+      thread_set_priority_other (lock->holder, thread_current ()->priority, false);
     }
   if (lock->lock_priority < thread_current ()->priority)
     {
@@ -291,14 +291,14 @@ lock_release (struct lock *lock)
   list_remove (&lock->holder_elem);
   if (list_empty (&curr->locks))
     {
-      thread_set_priority (curr->base_priority);
       curr->donated = false;
+      thread_set_priority (curr->base_priority);
     }
   else /* Still holding locks */
     {
       l = list_max (&curr->locks, outstanding_priority, NULL);
       another = list_entry (l, struct lock, holder_elem);
-      thread_set_priority (another->lock_priority);
+      thread_set_priority_other (curr, another->lock_priority, false);
     }
   /* == My Implementation */
   

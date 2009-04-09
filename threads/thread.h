@@ -143,7 +143,7 @@ void thread_foreach (thread_action_func *, void *);
 
 /* My Implementation */
 void sort_thread_list (struct list *l);
-void thread_set_priority_other (struct thread *curr, int new_priority);
+void thread_set_priority_other (struct thread *curr, int new_priority, bool forced);
 void thread_yield_head (struct thread *curr);
 /* == My Implementation */
 
