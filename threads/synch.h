@@ -38,6 +38,10 @@ bool lock_held_by_current_thread (const struct lock *);
 struct condition 
   {
     struct list waiters;        /* List of waiting threads. */
+    /* My Implementation */
+    //int cond_priority;          /* The highest priority waiting for the condition */
+    struct thread *holder;      /* Thread holding condition */
+    /* == My Implementation */
   };
 
 void cond_init (struct condition *);

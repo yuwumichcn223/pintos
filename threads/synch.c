@@ -206,7 +206,7 @@ lock_init (struct lock *lock)
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
   /* My Implementation */
-  lock->lock_priority = PRI_MIN;
+  lock->lock_priority = PRI_MIN - 1;
   /* == My Implementation */
 }
 
@@ -289,6 +289,7 @@ lock_release (struct lock *lock)
   
   /* My Implementation */
   list_remove (&lock->holder_elem);
+  lock->lock_priority = PRI_MIN - 1;
   if (list_empty (&curr->locks))
     {
       curr->donated = false;
@@ -296,9 +297,12 @@ lock_release (struct lock *lock)
     }
   else /* Still holding locks */
     {
-      l = list_max (&curr->locks, outstanding_priority, NULL);
+      l = list_min (&curr->locks, outstanding_priority, NULL);
       another = list_entry (l, struct lock, holder_elem);
-      thread_set_priority_other (curr, another->lock_priority, false);
+      if (another->lock_priority != PRI_MIN - 1)
+        thread_set_priority_other (curr, another->lock_priority, false);
+      else
+        thread_set_priority (curr->base_priority);
     }
   /* == My Implementation */
   
@@ -313,7 +317,7 @@ outstanding_priority (const struct list_elem *lhs, const struct list_elem *rhs, 
   l1 = list_entry (lhs, struct lock, holder_elem);
   l2 = list_entry (rhs, struct lock, holder_elem);
   
-  return (l1->lock_priority < l2->lock_priority);
+  return (l1->lock_priority > l2->lock_priority);
 }
 /* == My Implementation */
 
@@ -333,6 +337,9 @@ struct semaphore_elem
   {
     struct list_elem elem;              /* List element. */
     struct semaphore semaphore;         /* This semaphore. */
+    /* My Implementation */
+    int sema_priority;                  /* priority for the semaphore_elem */
+    /* == My Implementation */
   };
 
 /* Initializes condition variable COND.  A condition variable
@@ -344,7 +351,23 @@ cond_init (struct condition *cond)
   ASSERT (cond != NULL);
 
   list_init (&cond->waiters);
+  /* My Implementation */
+  cond->holder = NULL;
+  /* == My Implementation */
 }
+
+/* My Implementation */
+static bool
+cond_priority (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
+{
+  struct semaphore_elem *l, *r;
+  
+  l = list_entry (lhs, struct semaphore_elem, elem);
+  r = list_entry (rhs, struct semaphore_elem, elem);
+  
+  return (l->sema_priority > r->sema_priority);
+}
+/* == My Implementation */
 
 /* Atomically releases LOCK and waits for COND to be signaled by
    some other piece of code.  After COND is signaled, LOCK is
@@ -377,7 +400,12 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_push_back (&cond->waiters, &waiter.elem);
+  /* My Implementation */
+  waiter.sema_priority = thread_current ()->priority;
+  list_insert_ordered (&cond->waiters, &waiter.elem, cond_priority, NULL);
+  /* == My Implementation */
+  /* Old Implementation
+  list_push_back (&cond->waiters, &waiter.elem); */
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -401,6 +429,10 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   if (!list_empty (&cond->waiters)) 
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
+                          
+  /* My Implementation */
+  thread_yield_head (thread_current ());
+  /* == My Implementation */
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
