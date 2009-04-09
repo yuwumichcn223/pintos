@@ -87,7 +87,6 @@ dismiss_alarm (struct alarm *alrm)
 void
 alarm_check (void)
 {
-  int64_t curr_ticks, diff;
   struct list_elem *tmp, *next;
   struct alarm *alrm;
   
@@ -98,10 +97,7 @@ alarm_check (void)
       alrm = list_entry (tmp, struct alarm, elem);
       next = list_next (tmp);
       if (alrm->ticks <= timer_ticks ())
-        {
-          dismiss_alarm (alrm);
-          list_remove (tmp);
-        }
+        dismiss_alarm (alrm);
       tmp = next;
     }
 }

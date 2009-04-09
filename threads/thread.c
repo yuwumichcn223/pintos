@@ -649,11 +649,7 @@ schedule (void)
 
   if (cur != next)
     prev = switch_threads (cur, next);
-  schedule_tail (prev); 
-  
-  /* My Implementation */
-  alarm_check ();
-  /* == My Implementation */
+  schedule_tail (prev);
 }
 
 /* Returns a tid to use for a new thread. */

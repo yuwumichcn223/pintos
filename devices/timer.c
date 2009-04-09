@@ -190,6 +190,10 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  
+  /* My Implementation */
+  alarm_check ();
+  /* == My Implementation */
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
