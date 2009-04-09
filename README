@@ -69,12 +69,16 @@ modified threads/thread.h
 modified threads/synch.c
 modified threads/synch.h
 
+*****************
+
 WED, Apr 08, 2009
 Implemented priority for semaphores
 
 modified threads/thread.c
 modified threads/thread.h
 modified threads/synch.c
+
+*****************
 
 THU, Apr 09, 2009
 Implemented round-robin on same priority
