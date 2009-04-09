@@ -679,7 +679,7 @@ thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void
   a = list_entry (lhs, struct thread, elem);
   b = list_entry (rhs, struct thread, elem);
   
-  return (a->priority >= b->priority);
+  return (a->priority > b->priority);
 }
 
 /* put the threads who has outstanding priority to the head of the list */
@@ -703,7 +703,7 @@ thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rh
   a = list_entry (lhs, struct thread, elem);
   b = list_entry (rhs, struct thread, elem);
   
-  return (a->priority > b->priority);
+  return (a->priority >= b->priority);
 }
 
 /* same as thread_sort_less */
