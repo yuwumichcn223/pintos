@@ -184,6 +184,10 @@ thread_create (const char *name, int priority,
   enum intr_level old_level;
 
   ASSERT (function != NULL);
+  
+  /* My Implementation */
+  ASSERT (priority >= PRI_MIN && priority <= PRI_MAX);
+  /* == My Implementation */
 
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
@@ -417,10 +421,14 @@ thread_set_priority_other (struct thread *curr, int new_priority, bool forced)
       list_remove (&curr->elem);
       list_insert_ordered (&ready_list, &curr->elem, thread_insert_less_tail, NULL);
     }
-  if (curr->status == THREAD_RUNNING && list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
+  else if (curr->status == THREAD_RUNNING && list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
+    thread_yield_head (curr);
+  /*
+  else if (curr->status == THREAD_BLOCKED && curr->blocked != NULL)
     {
-      thread_yield_head (curr);
-    }
+      curr->blocked->holder->donated = true;
+      thread_set_priority_other (curr->blocked->holder, new_priority, forced);
+    } */
 }
 /* == My Implementation */
 
@@ -550,6 +558,7 @@ init_thread (struct thread *t, const char *name, int priority)
   /* My Implementation */
   t->base_priority = t->priority = priority;
   t->donated = false;
+  t->blocked = NULL;
   list_init (&t->locks);
   /* == My Implementation */
   t->magic = THREAD_MAGIC;

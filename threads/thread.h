@@ -102,6 +102,7 @@ struct thread
     int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
     struct list locks;                  /* the list of locks that it holds */
     bool donated;                       /* whether the thread has been donated priority */
+    struct lock *blocked;               /* by which lock this thread is blocked */
     /* == My Implementation */
     
 #ifdef USERPROG

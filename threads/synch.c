@@ -226,22 +226,43 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   /* My Implementation */
-  if (lock->holder != NULL && lock->holder->priority < thread_current ()->priority)
+  struct thread *curr, *thrd;
+  struct lock *another;
+  enum intr_level old_level;
+  
+  curr = thread_current ();
+  thrd = lock->holder;
+  curr->blocked = another = lock;
+  
+  old_level = intr_disable ();
+  
+  while (thrd != NULL && thrd->priority < curr->priority)
     {
-      lock->holder->donated = true;
-      thread_set_priority_other (lock->holder, thread_current ()->priority, false);
+      thrd->donated = true;
+      thread_set_priority_other (thrd, curr->priority, false);
+      if (another->lock_priority < curr->priority)
+        another->lock_priority = curr->priority;
+      if (thrd->status == THREAD_BLOCKED && thrd->blocked != NULL)
+        {
+          another = thrd->blocked;
+          thrd = thrd->blocked->holder;
+        }
+      else
+        break;
     }
-  if (lock->lock_priority < thread_current ()->priority)
-    {
-      lock->lock_priority = thread_current ()->priority;
-    }
+  
   /* == My Implementation */
 
   sema_down (&lock->semaphore);
-  lock->holder = thread_current ();
+  /* Old Implementation
+  lock->holder = thread_current (); */
   
   /* My Implementation */
-  list_push_back (&lock->holder->locks, &lock->holder_elem);
+  lock->holder = curr;
+  curr->blocked = NULL;
+  list_insert_ordered (&lock->holder->locks, &lock->holder_elem, outstanding_priority, NULL);
+  
+  intr_set_level (old_level);
   /* == My Implementation */
   
 }
@@ -262,7 +283,14 @@ lock_try_acquire (struct lock *lock)
 
   success = sema_try_down (&lock->semaphore);
   if (success)
-    lock->holder = thread_current ();
+    /* Old Implementation
+    lock->holder = thread_current (); */
+    /* My Implementation */
+    {
+      lock->holder = thread_current ();
+      list_push_back (&lock->holder->locks, &lock->holder_elem);
+    }
+    /* == My Implementation */
   return success;
 }
 
@@ -278,11 +306,17 @@ lock_release (struct lock *lock)
   struct thread *curr;
   struct list_elem *l;
   struct lock *another;
+  enum intr_level old_level;
+  
   curr = thread_current ();
+  
+  ASSERT (curr->blocked == NULL);
   /* == My Implementation */
   
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+  old_level = intr_disable ();
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
@@ -297,13 +331,15 @@ lock_release (struct lock *lock)
     }
   else /* Still holding locks */
     {
-      l = list_min (&curr->locks, outstanding_priority, NULL);
+      l = list_back (&curr->locks); //, outstanding_priority, NULL);
       another = list_entry (l, struct lock, holder_elem);
       if (another->lock_priority != PRI_MIN - 1)
         thread_set_priority_other (curr, another->lock_priority, false);
       else
         thread_set_priority (curr->base_priority);
     }
+    
+  intr_set_level (old_level);
   /* == My Implementation */
   
 }
