@@ -1,6 +1,7 @@
 #include "threads/thread.h"
 /* My Implementation */
 #include "threads/alarm.h"
+#include "threads/fixed-point.h"
 /* == My Implementation */
 #include <debug.h>
 #include <stddef.h>
@@ -78,6 +79,7 @@ static tid_t allocate_tid (void);
 static bool thread_sort_less (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
 static bool thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+static int load_avg;
 /* == My Implementation */
 
 
@@ -108,6 +110,10 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  
+  /* My Implementation */
+  load_avg = 0;
+  /* == My Implementation */
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -223,6 +229,9 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
   
   /* My Implementation */
+  if (thread_mlfqs)
+    t->priority = thread_get_priority ();
+  
   if (priority > thread_current ()->priority)
     thread_yield_head (thread_current ()); 
   /* == My Implementation */
@@ -436,6 +445,13 @@ thread_set_priority_other (struct thread *curr, int new_priority, bool forced)
 int
 thread_get_priority (void) 
 {
+  /* My Implementation */
+  
+  /* 4.4 BSD Scheduler */
+  if (thread_mlfqs)
+    return PRI_MAX - CONVERT_TO_INT_NEAR (thread_get_recent_cpu () / 4) - thread_get_nice () * 2;
+  /* == My Implementation */
+  
   return thread_current ()->priority;
 }
 
@@ -450,24 +466,49 @@ thread_set_nice (int nice UNUSED)
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* Old Implementation
+  return 0; */
+  /* My Implementation */
+  return thread_current ()->nice;
+  /* == My Implementation */
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* My Implementation */
+  return load_avg;
+  /* == My Implementation */
+  /* Old Implementation
+  return 0; */
 }
+
+/* My Implementation */
+void
+thread_calculate_load_avg (void)
+{
+  int ready_threads;
+  
+  if (thread_current () != idle_thread)
+    ready_threads = list_size (&ready_list) + 1;
+  else
+    ready_threads = 0;
+  load_avg = CONVERT_TO_INT_NEAR (100 * (FP_MUL (CONVERT_TO_FP (59) / 60, CONVERT_TO_FP (load_avg) / 100) + CONVERT_TO_FP (1) / 60 * ready_threads));
+}
+/* == My Implementation */
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* My Implementation */
+  static int recent_cpu = 0;
+  int load = 2 * thread_get_load_avg () / 100;
+  return recent_cpu = 100 * CONVERT_TO_INT_NEAR ((FP_DIV (load, load + 1) + CONVERT_TO_FP (recent_cpu) / 100) * thread_get_nice ());
+  /* == My Implementation */
+  /* Old Implementation
+  return 0; */
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -553,6 +594,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+  
   /* Old Implementation
   t->priority = priority; */
   /* My Implementation */
@@ -561,6 +603,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->blocked = NULL;
   list_init (&t->locks);
   /* == My Implementation */
+  
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }

@@ -192,6 +192,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
   
   /* My Implementation */
+  if (ticks % TIMER_FREQ == 0) /* do this every second */
+    thread_calculate_load_avg ();
   alarm_check ();
   /* == My Implementation */
 }
