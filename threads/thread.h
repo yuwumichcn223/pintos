@@ -110,7 +110,8 @@ struct thread
     bool donated;                       /* whether the thread has been donated priority */
     struct lock *blocked;               /* by which lock this thread is blocked */
     
-    int nice;
+    int nice;                           /* nice value of a thread */
+    int recent_cpu;                     /* recent cpu usage */
     /* == My Implementation */
     
 #ifdef USERPROG
@@ -156,6 +157,10 @@ void thread_set_priority_other (struct thread *curr, int new_priority, bool forc
 void thread_yield_head (struct thread *curr);
 
 void thread_calculate_load_avg (void);
+void thread_calculate_recent_cpu (void);
+void thread_calculate_priority (void);
+void thread_calculate_recent_cpu_for_all (void);
+void thread_calculate_priority_for_all (void);
 /* == My Implementation */
 
 int thread_get_priority (void);

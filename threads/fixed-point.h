@@ -14,8 +14,8 @@
 #error "FATAL ERROR: P + Q != 31."
 #endif
 
-#define INT_ADD(x, n) (x) + (n) / (FRACTION)
-#define INT_SUB(x, n) (x) - (n) / (FRACTION)
+#define INT_ADD(x, n) (x) + (n) * (FRACTION)
+#define INT_SUB(x, n) (x) - (n) * (FRACTION)
 #define CONVERT_TO_FP(x) (x) * (FRACTION)
 #define CONVERT_TO_INT_ZERO(x) (x) / (FRACTION)
 #define CONVERT_TO_INT_NEAR(x) ((x) >= 0 ? ((x) + (FRACTION) / 2) / (FRACTION) : ((x) - (FRACTION) / 2) / (FRACTION))
