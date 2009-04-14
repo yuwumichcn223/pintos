@@ -457,10 +457,14 @@ thread_set_nice (int nice /* Old Implementation UNUSED */)
 {
   ASSERT (nice >= NICE_MIN && nice <= NICE_MAX);
   
-  thread_current ()->nice = nice;
+  struct thread *curr;
+  
+  curr = thread_current ();
+  
+  curr->nice = nice;
   thread_calculate_recent_cpu ();
   thread_calculate_priority ();
-  sort_thread_list (&ready_list);
+  //sort_thread_list (&ready_list);
 }
 
 /* Returns the current thread's nice value. */
@@ -479,7 +483,7 @@ int
 thread_get_load_avg (void) 
 {
   /* My Implementation */
-  return CONVERT_TO_INT_NEAR (load_avg);
+  return CONVERT_TO_INT_NEAR (100 * load_avg);
   /* == My Implementation */
   /* Old Implementation
   return 0; */
@@ -495,7 +499,7 @@ thread_calculate_load_avg (void)
     ready_threads = list_size (&ready_list) + 1;
   else
     ready_threads = list_size (&ready_list);
-  load_avg = 100 * (FP_MUL (CONVERT_TO_FP (59) / 60, load_avg / 100) + CONVERT_TO_FP (1) / 60 * ready_threads);
+  load_avg = FP_MUL (CONVERT_TO_FP (59) / 60, load_avg) + CONVERT_TO_FP (1) / 60 * ready_threads;
 }
 
 void
@@ -527,8 +531,8 @@ thread_calculate_recent_cpu_other (struct thread *curr)
   if (curr == idle_thread)
     return;
     
-  int load = 2 * load_avg / 100;
-  curr->recent_cpu = CONVERT_TO_INT_NEAR (100 * INT_ADD (FP_MUL (FP_DIV (load, INT_ADD (load, 1)), CONVERT_TO_FP (curr->recent_cpu) / 100), curr->nice));
+  int load = 2 * load_avg;
+  curr->recent_cpu = INT_ADD (FP_MUL (FP_DIV (load, INT_ADD (load, 1)), curr->recent_cpu), curr->nice);
 }
 
 void
@@ -562,7 +566,7 @@ thread_calculate_priority_other (struct thread *curr)
   if (curr == idle_thread)
     return;
   
-  curr->priority = PRI_MAX - CONVERT_TO_INT_NEAR (CONVERT_TO_FP (curr->recent_cpu) / 400) - curr->nice * 2;
+  curr->priority = PRI_MAX - CONVERT_TO_INT_NEAR (curr->recent_cpu / 4) - curr->nice * 2;
   
   if (curr->priority > PRI_MAX)
     curr->priority = PRI_MAX;
@@ -577,7 +581,7 @@ int
 thread_get_recent_cpu (void) 
 {
   /* My Implementation */
-  return thread_current ()->recent_cpu; 
+  return CONVERT_TO_INT_NEAR (100 * thread_current ()->recent_cpu); 
   /* == My Implementation */
   /* Old Implementation
   return 0; */
