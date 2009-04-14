@@ -9,6 +9,7 @@
 #include "threads/thread.h"
 /* My Implementation */
 #include "threads/alarm.h"
+#include "threads/fixed-point.h"
 /* == My Implementation */
   
 /* See [8254] for hardware details of the 8254 timer chip. */
@@ -194,7 +195,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   /* My Implementation */
   if (thread_mlfqs)
   {
-    thread_current ()->recent_cpu += 100;
+    thread_current ()->recent_cpu = CONVERT_TO_INT_NEAR (INT_ADD (CONVERT_TO_FP (thread_current ()->recent_cpu), 100));
     if (ticks % TIMER_FREQ == 0) /* do this every second */
       {
         thread_calculate_load_avg ();

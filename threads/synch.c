@@ -467,7 +467,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
                           struct semaphore_elem, elem)->semaphore);
                           
   /* My Implementation */
-  thread_yield_head (thread_current ());
+  //thread_yield_head (thread_current ());
   /* == My Implementation */
 }
 

@@ -479,7 +479,7 @@ int
 thread_get_load_avg (void) 
 {
   /* My Implementation */
-  return load_avg;
+  return CONVERT_TO_INT_NEAR (load_avg);
   /* == My Implementation */
   /* Old Implementation
   return 0; */
@@ -494,8 +494,8 @@ thread_calculate_load_avg (void)
   if (thread_current () != idle_thread)
     ready_threads = list_size (&ready_list) + 1;
   else
-    ready_threads = 0;
-  load_avg = CONVERT_TO_INT_NEAR (100 * (FP_MUL (CONVERT_TO_FP (59) / 60, CONVERT_TO_FP (load_avg) / 100) + CONVERT_TO_FP (1) / 60 * ready_threads));
+    ready_threads = list_size (&ready_list);
+  load_avg = 100 * (FP_MUL (CONVERT_TO_FP (59) / 60, load_avg / 100) + CONVERT_TO_FP (1) / 60 * ready_threads);
 }
 
 void
@@ -527,8 +527,8 @@ thread_calculate_recent_cpu_other (struct thread *curr)
   if (curr == idle_thread)
     return;
     
-  int load = 2 * CONVERT_TO_FP (load_avg / 100);
-  curr->recent_cpu = CONVERT_TO_INT_NEAR (100 * ((FP_DIV (load, INT_ADD (load, 1)) + CONVERT_TO_FP (curr->recent_cpu) / 100) * curr->nice));
+  int load = 2 * load_avg / 100;
+  curr->recent_cpu = CONVERT_TO_INT_NEAR (100 * INT_ADD (FP_MUL (FP_DIV (load, INT_ADD (load, 1)), CONVERT_TO_FP (curr->recent_cpu) / 100), curr->nice));
 }
 
 void
@@ -562,7 +562,12 @@ thread_calculate_priority_other (struct thread *curr)
   if (curr == idle_thread)
     return;
   
-  curr->priority = PRI_MAX - CONVERT_TO_INT_NEAR (curr->recent_cpu / 400) - curr->nice * 2;
+  curr->priority = PRI_MAX - CONVERT_TO_INT_NEAR (CONVERT_TO_FP (curr->recent_cpu) / 400) - curr->nice * 2;
+  
+  if (curr->priority > PRI_MAX)
+    curr->priority = PRI_MAX;
+  else if (curr->priority < PRI_MIN)
+    curr->priority = PRI_MIN;
 }
 
 /* == My Implementation */
