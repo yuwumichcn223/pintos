@@ -111,6 +111,14 @@ modified threads/thread.h
 modified threads/synch.c
 modified devices/timer.c
 
+*****************
+
+TUE, Apr 14, 2009
+Passed mlfqs-nice-2 and mlfqs-nice-10
+
+modified threads/thread.c
+modified devices/timer.c
+
 Test Results(against previous):
 -------------
 (=) pass tests/threads/alarm-single
@@ -131,15 +139,15 @@ Test Results(against previous):
 (=) pass tests/threads/priority-sema
 (=) pass tests/threads/priority-condvar
 (=) pass tests/threads/priority-donate-chain
-(+) pass tests/threads/mlfqs-load-1
-(+) pass tests/threads/mlfqs-load-60
-(+) pass tests/threads/mlfqs-load-avg
-(=) FAIL tests/threads/mlfqs-recent-1
+(=) pass tests/threads/mlfqs-load-1
+(=) pass tests/threads/mlfqs-load-60
+(=) pass tests/threads/mlfqs-load-avg
+(+) pass tests/threads/mlfqs-recent-1
 (=) pass tests/threads/mlfqs-fair-2
 (=) pass tests/threads/mlfqs-fair-20
-(=) FAIL tests/threads/mlfqs-nice-2
-(=) FAIL tests/threads/mlfqs-nice-10
+(+) pass tests/threads/mlfqs-nice-2
+(+) pass tests/threads/mlfqs-nice-10
 (=) FAIL tests/threads/mlfqs-block
-4 of 27 tests failed.
+1 of 27 tests failed.
 
 ==================================
