@@ -126,7 +126,7 @@ Passed mlfqs-block
 
 modified threads/synch.c
 
-Test Results(against previous):
+Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
 (=) pass tests/threads/alarm-multiple
@@ -154,7 +154,7 @@ Test Results(against previous):
 (=) pass tests/threads/mlfqs-fair-20
 (=) pass tests/threads/mlfqs-nice-2
 (=) pass tests/threads/mlfqs-nice-10
-(+) pass tests/threads/mlfqs-block
-0 of 27 tests failed.
+(=) pass tests/threads/mlfqs-block
+All tests passed.
 
 ==================================
