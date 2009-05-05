@@ -126,6 +126,25 @@ Passed mlfqs-block
 
 modified threads/synch.c
 
+*****************
+
+Project 2: User Programs
+
+Requirements:
+
+1) Process Termination Messages
+   * Print termination messages when process exits
+2) Argument Passing
+   * Extend process_execute() to allow passing arguments
+   * Parse the arguments so that the program could read them
+3) System Calls
+   * Implement system call mechanism
+   * Implement basic system calls listed in "lib/syscall-nr.h"
+   * Protection from invalid system calls
+   * Synchronize system calls
+4) Deny Writes to Executables
+   * Deny write operation to executable files currently running
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
@@ -156,5 +175,85 @@ Test Results (Project 1):
 (=) pass tests/threads/mlfqs-nice-10
 (=) pass tests/threads/mlfqs-block
 All tests passed.
+
+Test Results (Project 2):
+-------------
+(=) FAIL tests/userprog/args-none
+(=) FAIL tests/userprog/args-single
+(=) FAIL tests/userprog/args-multiple
+(=) FAIL tests/userprog/args-many
+(=) FAIL tests/userprog/args-dbl-space
+(=) FAIL tests/userprog/sc-bad-sp
+(=) FAIL tests/userprog/sc-bad-arg
+(=) FAIL tests/userprog/sc-boundary
+(=) FAIL tests/userprog/sc-boundary-2
+(=) FAIL tests/userprog/halt
+(=) FAIL tests/userprog/exit
+(=) FAIL tests/userprog/create-normal
+(=) FAIL tests/userprog/create-empty
+(=) FAIL tests/userprog/create-null
+(=) FAIL tests/userprog/create-bad-ptr
+(=) FAIL tests/userprog/create-long
+(=) FAIL tests/userprog/create-exists
+(=) FAIL tests/userprog/create-bound
+(=) FAIL tests/userprog/open-normal
+(=) FAIL tests/userprog/open-missing
+(=) FAIL tests/userprog/open-boundary
+(=) FAIL tests/userprog/open-empty
+(=) FAIL tests/userprog/open-null
+(=) FAIL tests/userprog/open-bad-ptr
+(=) FAIL tests/userprog/open-twice
+(=) FAIL tests/userprog/close-normal
+(=) FAIL tests/userprog/close-twice
+(=) FAIL tests/userprog/close-stdin
+(=) FAIL tests/userprog/close-stdout
+(=) FAIL tests/userprog/close-bad-fd
+(=) FAIL tests/userprog/read-normal
+(=) FAIL tests/userprog/read-bad-ptr
+(=) FAIL tests/userprog/read-boundary
+(=) FAIL tests/userprog/read-zero
+(=) FAIL tests/userprog/read-stdout
+(=) FAIL tests/userprog/read-bad-fd
+(=) FAIL tests/userprog/write-normal
+(=) FAIL tests/userprog/write-bad-ptr
+(=) FAIL tests/userprog/write-boundary
+(=) FAIL tests/userprog/write-zero
+(=) FAIL tests/userprog/write-stdin
+(=) FAIL tests/userprog/write-bad-fd
+(=) FAIL tests/userprog/exec-once
+(=) FAIL tests/userprog/exec-arg
+(=) FAIL tests/userprog/exec-multiple
+(=) FAIL tests/userprog/exec-missing
+(=) FAIL tests/userprog/exec-bad-ptr
+(=) FAIL tests/userprog/wait-simple
+(=) FAIL tests/userprog/wait-twice
+(=) FAIL tests/userprog/wait-killed
+(=) FAIL tests/userprog/wait-bad-pid
+(=) FAIL tests/userprog/multi-recurse
+(=) FAIL tests/userprog/multi-child-fd
+(=) FAIL tests/userprog/rox-simple
+(=) FAIL tests/userprog/rox-child
+(=) FAIL tests/userprog/rox-multichild
+(=) FAIL tests/userprog/bad-read
+(=) FAIL tests/userprog/bad-write
+(=) FAIL tests/userprog/bad-read2
+(=) FAIL tests/userprog/bad-write2
+(=) FAIL tests/userprog/bad-jump
+(=) FAIL tests/userprog/bad-jump2
+(=) FAIL tests/userprog/no-vm/multi-oom
+(=) FAIL tests/filesys/base/lg-create
+(=) FAIL tests/filesys/base/lg-full
+(=) FAIL tests/filesys/base/lg-random
+(=) FAIL tests/filesys/base/lg-seq-block
+(=) FAIL tests/filesys/base/lg-seq-random
+(=) FAIL tests/filesys/base/sm-create
+(=) FAIL tests/filesys/base/sm-full
+(=) FAIL tests/filesys/base/sm-random
+(=) FAIL tests/filesys/base/sm-seq-block
+(=) FAIL tests/filesys/base/sm-seq-random
+(=) FAIL tests/filesys/base/syn-read
+(=) FAIL tests/filesys/base/syn-remove
+(=) FAIL tests/filesys/base/syn-write
+76 of 76 tests failed.
 
 ==================================
