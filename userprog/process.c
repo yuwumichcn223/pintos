@@ -54,13 +54,53 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  /* My Implementation */
+  char *token, *save_ptr;
+  int argc;
+  int argv_off[128]; /* Maximum of 128 arguments */
+  size_t file_name_len;
+  /* == My Implementation */
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+  
+  /* My Implementation */
+  argc = 0;
+  file_name_len = strlen (file_name);
+  for (
+       token = strtok_r (file_name, " ", &save_ptr);
+       token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)
+       )
+        {
+          if (argc == 128)
+            {
+              palloc_free_page (file_name);
+              thread_exit ();
+            }
+          argv_off[argc++] = save_ptr - file_name;
+        }
+  /* == My Implementation */
+  
   success = load (file_name, &if_.eip, &if_.esp);
-
+  
+  /* My Implementation */
+  /* Setting up stack */
+  if_.esp -= file_name_len + 1;
+  memcpy (if_.esp, file_name, file_name_len + 1);
+  if_.esp -= (file_name_len + 1) % 4; /* alignment */
+  if_.esp -= 4;
+  *(int *)(if_.esp) = 0;
+  if_.esp -= 4;
+  *(int *)(if_.esp) = argc;
+  if_.esp -= 4;
+  *(int *)(if_.esp) = 0; /* Fake return address */
+  
+  /* == My Implementation */
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
@@ -86,9 +126,22 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid /* Old Implementation UNUSED */) 
 {
-  return -1;
+  /* Old Implementation
+  return -1; */
+  
+  /* My Implementation */
+  struct thread *t;
+  
+  t = get_thread_by_tid (child_tid);
+  if (!t)
+    PANIC ("failed!");
+    
+  sema_down (&t->wait);
+  
+  return -1; /* return value NOT implemented */
+  /* == My Implementation */
 }
 
 /* Free the current process's resources. */
@@ -98,6 +151,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /* My Implementation */
+  while (list_size (&cur->wait.waiters))
+    sema_up (&cur->wait);
+  /* == My Implementation */
+  
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -437,7 +495,11 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        /* Old Implementation
+        *esp = PHYS_BASE; */
+        /* My Implementation */
+        *esp = PHYS_BASE - 12;
+        /* == My Implementation */
       else
         palloc_free_page (kpage);
     }
