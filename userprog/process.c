@@ -31,13 +31,21 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+  /* My Implementation */
+  char *save;
+  /* == My Implementation */
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  
+  /* My Implementation */
+  file_name = strtok_r ((char *)file_name, " ", &save);
+  /* == My Implementation */
+  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -56,8 +64,9 @@ start_process (void *file_name_)
 
   /* My Implementation */
   char *token, *save_ptr;
-  int argc;
-  int argv_off[128]; /* Maximum of 128 arguments */
+  void *start;
+  int argc, i;
+  int *argv_off; /* Maximum of 128 arguments */
   size_t file_name_len;
   /* == My Implementation */
 
@@ -69,19 +78,22 @@ start_process (void *file_name_)
   
   /* My Implementation */
   argc = 0;
+  argv_off = palloc_get_page (0);
   file_name_len = strlen (file_name);
+  argv_off[0] = 0;
   for (
        token = strtok_r (file_name, " ", &save_ptr);
        token != NULL;
        token = strtok_r (NULL, " ", &save_ptr)
        )
         {
-          if (argc == 128)
+          if (argc >= 128)
             {
               palloc_free_page (file_name);
+              palloc_free_page (argv_off);
               thread_exit ();
             }
-          argv_off[argc++] = save_ptr - file_name;
+          argv_off[++argc] = save_ptr - file_name;
         }
   /* == My Implementation */
   
@@ -90,15 +102,26 @@ start_process (void *file_name_)
   /* My Implementation */
   /* Setting up stack */
   if_.esp -= file_name_len + 1;
+  start = if_.esp;
   memcpy (if_.esp, file_name, file_name_len + 1);
-  if_.esp -= (file_name_len + 1) % 4; /* alignment */
+  if_.esp -= 4 - (file_name_len + 1) % 4; /* alignment */
   if_.esp -= 4;
-  *(int *)(if_.esp) = 0;
+  *(int *)(if_.esp) = 0; /* argv[argc] == 0 */
+  /* Now pushing argv[x], and this is where the fun begins */
+  for (i = argc - 1; i >= 0; --i)
+    {
+      if_.esp -= 4;
+      *(void **)(if_.esp) = start + argv_off[i]; /* argv[x] */
+    }
+  
+  if_.esp -= 4;
+  *(char **)(if_.esp) = (if_.esp + 4); /* argv */
   if_.esp -= 4;
   *(int *)(if_.esp) = argc;
   if_.esp -= 4;
   *(int *)(if_.esp) = 0; /* Fake return address */
   
+  palloc_free_page (argv_off);
   /* == My Implementation */
   
   /* If load failed, quit. */
@@ -133,14 +156,17 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   
   /* My Implementation */
   struct thread *t;
+  int ret;
   
   t = get_thread_by_tid (child_tid);
   if (!t)
     PANIC ("failed!");
     
   sema_down (&t->wait);
+  ret = t->ret_status;
+  thread_unblock (t);
   
-  return -1; /* return value NOT implemented */
+  return ret; /* return value NOT implemented */
   /* == My Implementation */
 }
 
@@ -152,8 +178,13 @@ process_exit (void)
   uint32_t *pd;
 
   /* My Implementation */
-  while (list_size (&cur->wait.waiters))
-    sema_up (&cur->wait);
+  printf ("%s: exit(%d)\n", cur->name, cur->ret_status);
+  
+  sema_up (&cur->wait);
+  intr_disable ();
+  thread_block ();
+  intr_enable ();
+  
   /* == My Implementation */
   
   /* Destroy the current process's page directory and switch back
@@ -498,7 +529,7 @@ setup_stack (void **esp)
         /* Old Implementation
         *esp = PHYS_BASE; */
         /* My Implementation */
-        *esp = PHYS_BASE - 12;
+        *esp = PHYS_BASE;
         /* == My Implementation */
       else
         palloc_free_page (kpage);

@@ -145,6 +145,16 @@ Requirements:
 4) Deny Writes to Executables
    * Deny write operation to executable files currently running
 
+Changelogs:
+
+FRI, May 22, 2009
+Passed 9 tests
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/process.h
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
@@ -176,19 +186,19 @@ Test Results (Project 1):
 (=) pass tests/threads/mlfqs-block
 All tests passed.
 
-Test Results (Project 2):
+Test Results (Project 2, against previous):
 -------------
-(=) FAIL tests/userprog/args-none
-(=) FAIL tests/userprog/args-single
-(=) FAIL tests/userprog/args-multiple
-(=) FAIL tests/userprog/args-many
+(+) pass tests/userprog/args-none
+(+) pass tests/userprog/args-single
+(+) pass tests/userprog/args-multiple
+(+) pass tests/userprog/args-many
 (=) FAIL tests/userprog/args-dbl-space
 (=) FAIL tests/userprog/sc-bad-sp
 (=) FAIL tests/userprog/sc-bad-arg
-(=) FAIL tests/userprog/sc-boundary
-(=) FAIL tests/userprog/sc-boundary-2
+(+) pass tests/userprog/sc-boundary
+(+) pass tests/userprog/sc-boundary-2
 (=) FAIL tests/userprog/halt
-(=) FAIL tests/userprog/exit
+(+) pass tests/userprog/exit
 (=) FAIL tests/userprog/create-normal
 (=) FAIL tests/userprog/create-empty
 (=) FAIL tests/userprog/create-null
@@ -218,8 +228,8 @@ Test Results (Project 2):
 (=) FAIL tests/userprog/write-bad-ptr
 (=) FAIL tests/userprog/write-boundary
 (=) FAIL tests/userprog/write-zero
-(=) FAIL tests/userprog/write-stdin
-(=) FAIL tests/userprog/write-bad-fd
+(+) pass tests/userprog/write-stdin
+(+) pass tests/userprog/write-bad-fd
 (=) FAIL tests/userprog/exec-once
 (=) FAIL tests/userprog/exec-arg
 (=) FAIL tests/userprog/exec-multiple
@@ -254,6 +264,6 @@ Test Results (Project 2):
 (=) FAIL tests/filesys/base/syn-read
 (=) FAIL tests/filesys/base/syn-remove
 (=) FAIL tests/filesys/base/syn-write
-76 of 76 tests failed.
+67 of 76 tests failed.
 
 ==================================

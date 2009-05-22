@@ -237,6 +237,10 @@ thread_create (const char *name, int priority,
     thread_calculate_priority_other (t);
   if (priority > thread_current ()->priority)
     thread_yield_head (thread_current ()); 
+    
+#ifdef USERPROG
+  sema_init (&t->wait, 0);
+#endif
   /* == My Implementation */
   
   return tid;
@@ -853,6 +857,24 @@ static bool
 thread_insert_less_tail (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED)
 {
   return thread_sort_less (lhs, rhs, NULL);
+}
+
+struct thread *
+get_thread_by_tid (tid_t tid)
+{
+  struct list_elem *f;
+  struct thread *ret;
+  
+  ret = NULL;
+  for (f = list_begin (&all_list); f != list_end (&all_list); f = list_next (f))
+    {
+      ret = list_entry (f, struct thread, allelem);
+      ASSERT (is_thread (ret));
+      if (ret->tid == tid)
+        return ret;
+    }
+    
+  return NULL;
 }
 
 /* == My Implementation */
