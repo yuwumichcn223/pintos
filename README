@@ -148,7 +148,7 @@ Requirements:
 Changelogs:
 
 FRI, May 22, 2009
-Passed 9 tests
+Passed 9 tests, tagged args_freeze
 
 modified threads/thread.c
 modified threads/thread.h
@@ -192,7 +192,7 @@ Test Results (Project 2, against previous):
 (+) pass tests/userprog/args-single
 (+) pass tests/userprog/args-multiple
 (+) pass tests/userprog/args-many
-(=) FAIL tests/userprog/args-dbl-space
+(+) pass tests/userprog/args-dbl-space
 (=) FAIL tests/userprog/sc-bad-sp
 (=) FAIL tests/userprog/sc-bad-arg
 (+) pass tests/userprog/sc-boundary
@@ -264,6 +264,6 @@ Test Results (Project 2, against previous):
 (=) FAIL tests/filesys/base/syn-read
 (=) FAIL tests/filesys/base/syn-remove
 (=) FAIL tests/filesys/base/syn-write
-67 of 76 tests failed.
+66 of 76 tests failed.
 
 ==================================
