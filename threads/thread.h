@@ -33,6 +33,10 @@ typedef int tid_t;
 #define NICE_MAX 20
 #define NICE_DEFAULT 0
 #define NICE_MIN -20
+
+#ifdef USERPROG
+# define RET_STATUS_DEFAULT 0xcdcdcdcd
+#endif
 /* == My Implementation */
 
 /* A kernel thread or user process.

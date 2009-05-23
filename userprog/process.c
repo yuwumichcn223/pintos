@@ -33,6 +33,9 @@ process_execute (const char *file_name)
 
   /* My Implementation */
   char *save;
+  char *fn;
+  
+  struct thread *t;
   /* == My Implementation */
 
   /* Make a copy of FILE_NAME.
@@ -43,11 +46,28 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   
   /* My Implementation */
-  file_name = strtok_r ((char *)file_name, " ", &save);
+  fn = palloc_get_page (0);
+  strlcpy (fn, file_name, PGSIZE);
+  file_name = strtok_r (fn, " ", &save);
   /* == My Implementation */
   
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  /* Old Implementation 
+  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy); */
+  
+  /* My Implementation */
+  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+  /* Wait for child thread to load */
+  t = get_thread_by_tid (tid);
+  sema_down (&t->wait);
+  if (t->ret_status == -1)
+    tid = TID_ERROR;
+  thread_unblock (t);
+  if (t->ret_status == -1)
+    process_wait (t->tid);
+  palloc_free_page (fn);
+  /* == My Implementation */
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -68,6 +88,7 @@ start_process (void *file_name_)
   int argc, i;
   int *argv_off; /* Maximum of 128 arguments */
   size_t file_name_len;
+  struct thread *t;
   /* == My Implementation */
 
   /* Initialize interrupt frame and load executable. */
@@ -77,6 +98,7 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   
   /* My Implementation */
+  t = thread_current ();
   argc = 0;
   argv_off = palloc_get_page (0);
   file_name_len = strlen (file_name);
@@ -105,33 +127,51 @@ start_process (void *file_name_)
   
   /* My Implementation */
   /* Setting up stack */
-  if_.esp -= file_name_len + 1;
-  start = if_.esp;
-  memcpy (if_.esp, file_name, file_name_len + 1);
-  if_.esp -= 4 - (file_name_len + 1) % 4; /* alignment */
-  if_.esp -= 4;
-  *(int *)(if_.esp) = 0; /* argv[argc] == 0 */
-  /* Now pushing argv[x], and this is where the fun begins */
-  for (i = argc - 1; i >= 0; --i)
+  if (success)
     {
+      if_.esp -= file_name_len + 1;
+      start = if_.esp;
+      memcpy (if_.esp, file_name, file_name_len + 1);
+      if_.esp -= 4 - (file_name_len + 1) % 4; /* alignment */
       if_.esp -= 4;
-      *(void **)(if_.esp) = start + argv_off[i]; /* argv[x] */
+      *(int *)(if_.esp) = 0; /* argv[argc] == 0 */
+      /* Now pushing argv[x], and this is where the fun begins */
+      for (i = argc - 1; i >= 0; --i)
+        {
+          if_.esp -= 4;
+          *(void **)(if_.esp) = start + argv_off[i]; /* argv[x] */
+        }
+
+      if_.esp -= 4;
+      *(char **)(if_.esp) = (if_.esp + 4); /* argv */
+      if_.esp -= 4;
+      *(int *)(if_.esp) = argc;
+      if_.esp -= 4;
+      *(int *)(if_.esp) = 0; /* Fake return address */
+      
+      sema_up (&t->wait);
+      intr_disable ();
+      thread_block ();
+      intr_enable ();
     }
-  
-  if_.esp -= 4;
-  *(char **)(if_.esp) = (if_.esp + 4); /* argv */
-  if_.esp -= 4;
-  *(int *)(if_.esp) = argc;
-  if_.esp -= 4;
-  *(int *)(if_.esp) = 0; /* Fake return address */
+  else
+    {
+      t->ret_status = -1;
+      sema_up (&t->wait);
+      intr_disable ();
+      thread_block ();
+      intr_enable ();
+      thread_exit ();
+    }
   
   palloc_free_page (argv_off);
   /* == My Implementation */
   
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  /* Old Implementation 
+  if (!success)   
+    thread_exit (); */
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -163,11 +203,11 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   int ret;
   
   t = get_thread_by_tid (child_tid);
-  if (!t)
-    PANIC ("failed!");
-    
+  if (!t || t->status == THREAD_DYING || t->ret_status != RET_STATUS_DEFAULT)
+    return -1;
   sema_down (&t->wait);
   ret = t->ret_status;
+  printf ("%s: exit(%d)\n", t->name, t->ret_status);
   thread_unblock (t);
   
   return ret; /* return value NOT implemented */
@@ -182,13 +222,10 @@ process_exit (void)
   uint32_t *pd;
 
   /* My Implementation */
-  printf ("%s: exit(%d)\n", cur->name, cur->ret_status);
-  
   sema_up (&cur->wait);
   intr_disable ();
   thread_block ();
-  intr_enable ();
-  
+  //intr_enable ();
   /* == My Implementation */
   
   /* Destroy the current process's page directory and switch back
