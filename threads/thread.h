@@ -128,6 +128,7 @@ struct thread
     int ret_status;                     /* return status */
     struct list files;                  /* all opened files */
     struct file *self;                  /* the image file on the disk */
+    struct thread *parent;              /* parent process */
     /* == My Implementation */
 #endif
 

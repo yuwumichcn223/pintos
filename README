@@ -154,6 +154,19 @@ modified threads/thread.c
 modified threads/thread.h
 modified userprog/process.c
 modified userprog/process.h
+modified userprog/syscall.c
+
+*****************
+
+SAT, May 23, 2009
+Implemented all system call
+Implemented denying writes to executables
+3/76 on pintos
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/syscall.c
 
 Test Results (Project 1):
 -------------
@@ -240,16 +253,16 @@ Test Results (Project 2, against previous):
 (=) pass tests/userprog/wait-killed
 (=) pass tests/userprog/wait-bad-pid
 (=) pass tests/userprog/multi-recurse
-(+) pass tests/userprog/multi-child-fd
-(=) FAIL tests/userprog/rox-simple
-(=) FAIL tests/userprog/rox-child
-(=) FAIL tests/userprog/rox-multichild
+(=) pass tests/userprog/multi-child-fd
+(+) pass tests/userprog/rox-simple
+(+) pass tests/userprog/rox-child
+(+) pass tests/userprog/rox-multichild
 (=) pass tests/userprog/bad-read
 (=) pass tests/userprog/bad-write
-(+) pass tests/userprog/bad-read2
-(+) pass tests/userprog/bad-write2
+(=) pass tests/userprog/bad-read2
+(=) pass tests/userprog/bad-write2
 (=) pass tests/userprog/bad-jump
-(+) pass tests/userprog/bad-jump2
+(=) pass tests/userprog/bad-jump2
 (=) FAIL tests/userprog/no-vm/multi-oom
 (=) pass tests/filesys/base/lg-create
 (=) pass tests/filesys/base/lg-full
@@ -264,6 +277,6 @@ Test Results (Project 2, against previous):
 (=) FAIL tests/filesys/base/syn-read
 (=) pass tests/filesys/base/syn-remove
 (=) FAIL tests/filesys/base/syn-write
-6 of 76 tests failed.
+3 of 76 tests failed.
 
 ==================================
