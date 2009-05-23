@@ -12,6 +12,7 @@
 #include "filesys/filesys.h"
 #include "threads/palloc.h"
 #include "devices/input.h"
+#include "threads/synch.h"
 /* == My Implementation */
 
 static void syscall_handler (struct intr_frame *);
@@ -37,9 +38,12 @@ static int sys_remove (const char *file);
 static struct file *find_file_by_fd (int fd);
 static struct fd_elem *find_fd_elem_by_fd (int fd);
 static int alloc_fid (void);
+static struct fd_elem *find_fd_elem_by_fd_in_process (int fd);
+static struct file *find_file_by_fd_in_process (int fd);
 
 typedef int (*handler) (uint32_t, uint32_t, uint32_t);
 static handler syscall_vec[128];
+static struct lock file_lock;
 
 struct fd_elem
   {
@@ -75,6 +79,7 @@ syscall_init (void)
   syscall_vec[SYS_REMOVE] = (handler)sys_remove;
   
   list_init (&file_list);
+  lock_init (&file_lock);
   /* == My Implementation */
 }
 
@@ -117,20 +122,35 @@ static int
 sys_write (int fd, const void *buffer, unsigned length)
 {
   struct file * f;
+  int ret;
   
+  lock_acquire (&file_lock);
   if (fd == STDOUT_FILENO) /* stdout */
     putbuf (buffer, length);
   else if (fd == STDIN_FILENO) /* stdin */
-    return -1;
-  else if (!is_user_vaddr (buffer))
-    sys_exit (-1);
+    {
+      ret = -1;
+      goto done;
+    }
+  else if (!is_user_vaddr (buffer) || !is_user_vaddr (buffer + length))
+    {
+      lock_release (&file_lock);
+      sys_exit (-1);
+    }
   else
     {
       f = find_file_by_fd (fd);
       if (!f)
-        return -1;
-      return file_write (f, buffer, length);
+        {
+          ret = -1;
+          goto done;
+        }
+      
+      ret = file_write (f, buffer, length);
     }
+    
+done:
+  lock_release (&file_lock);
   return length;
 }
 
@@ -199,7 +219,7 @@ sys_close(int fd)
 {
   struct fd_elem *f;
   
-  f = find_fd_elem_by_fd (fd);
+  f = find_fd_elem_by_fd_in_process (fd);
   
   if (!f) /* Bad fd */
     return -1;
@@ -215,25 +235,40 @@ sys_read (int fd, void *buffer, unsigned size)
 {
   struct file * f;
   unsigned i;
+  int ret;
   
+  lock_acquire (&file_lock);
   if (fd == STDIN_FILENO) /* stdin */
     {
       for (i = 0; i != size; ++i)
         *(uint8_t *)(buffer + i) = input_getc ();
-      return size;
+      ret = size;
+      goto done;
     }
   else if (fd == STDOUT_FILENO) /* stdout */
-    return -1;
-  else if (!is_user_vaddr (buffer)) /* bad ptr */
-    sys_exit (-1);
+    {
+      ret = -1;
+      goto done;
+    }
+  else if (!is_user_vaddr (buffer) || !is_user_vaddr (buffer + size)) /* bad ptr */
+    {
+      lock_release (&file_lock);
+      sys_exit (-1);
+    }
   else
     {
       f = find_file_by_fd (fd);
       if (!f)
-        return -1;
-      return file_read (f, buffer, size);
+        {
+          ret = -1;
+          goto done;
+        }
+      ret = file_read (f, buffer, size);
     }
-  return -1; /* Should NOT reach here */
+    
+done:    
+  lock_release (&file_lock);
+  return ret;
 }
 
 static int
@@ -327,4 +362,34 @@ sys_remove (const char *file)
     sys_exit (-1);
     
   return filesys_remove (file);
+}
+
+static struct fd_elem *
+find_fd_elem_by_fd_in_process (int fd)
+{
+  struct fd_elem *ret;
+  struct list_elem *l;
+  struct thread *t;
+  
+  t = thread_current ();
+  
+  for (l = list_begin (&t->files); l != list_end (&t->files); l = list_next (l))
+    {
+      ret = list_entry (l, struct fd_elem, elem);
+      if (ret->fd == fd)
+        return ret;
+    }
+    
+  return NULL;
+}
+
+static struct file *
+find_file_by_fd_in_process (int fd)
+{
+  struct fd_elem *ret;
+  
+  ret = find_fd_elem_by_fd_in_process (fd);
+  if (!ret)
+    return NULL;
+  return ret->file;
 }

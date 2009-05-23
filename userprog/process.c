@@ -129,6 +129,8 @@ start_process (void *file_name_)
   /* Setting up stack */
   if (success)
     {
+      //t->self = file_open (file_name);
+      //file_deny_write (t->self);
       if_.esp -= file_name_len + 1;
       start = if_.esp;
       memcpy (if_.esp, file_name, file_name_len + 1);
@@ -223,6 +225,7 @@ process_exit (void)
 
   /* My Implementation */
   sema_up (&cur->wait);
+  //file_close (cur->self);
   intr_disable ();
   thread_block ();
   /* == My Implementation */
