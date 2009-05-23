@@ -11,6 +11,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/palloc.h"
+#include "devices/input.h"
 /* == My Implementation */
 
 static void syscall_handler (struct intr_frame *);
@@ -28,6 +29,9 @@ static int sys_close (int fd);
 static int sys_read (int fd, void *buffer, unsigned size);
 static int sys_exec (const char * cmd);
 static int sys_wait (pid_t pid);
+static int sys_filesize (int fd);
+static int sys_tell (int fd);
+static int sys_seek (int fd, unsigned pos);
 
 static struct file *find_file_by_fd (int fd);
 static struct fd_elem *find_fd_elem_by_fd (int fd);
@@ -64,6 +68,9 @@ syscall_init (void)
   syscall_vec[SYS_WRITE] = (handler)sys_write;
   syscall_vec[SYS_EXEC] = (handler)sys_exec;
   syscall_vec[SYS_WAIT] = (handler)sys_wait;
+  syscall_vec[SYS_FILESIZE] = (handler)sys_filesize;
+  syscall_vec[SYS_SEEK] = (handler)sys_seek;
+  syscall_vec[SYS_TELL] = (handler)sys_tell;
   
   list_init (&file_list);
   /* == My Implementation */
@@ -113,6 +120,8 @@ sys_write (int fd, const void *buffer, unsigned length)
     putbuf (buffer, length);
   else if (fd == STDIN_FILENO) /* stdin */
     return -1;
+  else if (!is_user_vaddr (buffer))
+    sys_exit (-1);
   else
     {
       f = find_file_by_fd (fd);
@@ -151,7 +160,9 @@ sys_halt (void)
 static int
 sys_create (const char *file, unsigned initial_size)
 {
-  return -1;
+  if (!file)
+    return sys_exit (-1);
+  return filesys_create (file, initial_size);
 }
 
 static int
@@ -200,7 +211,26 @@ sys_close(int fd)
 static int
 sys_read (int fd, void *buffer, unsigned size)
 {
-  return -1;
+  struct file * f;
+  unsigned i;
+  
+  if (fd == STDIN_FILENO) /* stdin */
+    {
+      for (i = 0; i != size; ++i)
+        *(uint8_t *)(buffer + i) = input_getc ();
+      return size;
+    }
+  else if (fd == STDOUT_FILENO) /* stdout */
+    return -1;
+  else if (!is_user_vaddr (buffer)) /* bad ptr */
+    sys_exit (-1);
+  else
+    {
+      f = find_file_by_fd (fd);
+      if (!f)
+        return -1;
+      return file_read (f, buffer, size);
+    }
 }
 
 static int
@@ -249,4 +279,38 @@ alloc_fid (void)
 {
   static int fid = 2;
   return fid++;
+}
+
+static int
+sys_filesize (int fd)
+{
+  struct file *f;
+  
+  f = find_file_by_fd (fd);
+  if (!f)
+    return -1;
+  return file_length (f);
+}
+
+static int
+sys_tell (int fd)
+{
+  struct file *f;
+  
+  f = find_file_by_fd (fd);
+  if (!f)
+    return -1;
+  return file_tell (f);
+}
+
+static int
+sys_seek (int fd, unsigned pos)
+{
+  struct file *f;
+  
+  f = find_file_by_fd (fd);
+  if (!f)
+    return -1;
+  file_seek (f, pos);
+  return 0; /* Not used */
 }
