@@ -225,7 +225,6 @@ process_exit (void)
   sema_up (&cur->wait);
   intr_disable ();
   thread_block ();
-  //intr_enable ();
   /* == My Implementation */
   
   /* Destroy the current process's page directory and switch back

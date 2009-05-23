@@ -125,7 +125,8 @@ struct thread
     
     /* My Implementation */
     struct semaphore wait;              /* semaphore for process_wait */
-    int ret_status;
+    int ret_status;                     /* return status */
+    struct list files;                  /* all opened files */
     /* == My Implementation */
 #endif
 
