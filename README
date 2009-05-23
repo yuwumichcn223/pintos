@@ -262,8 +262,8 @@ Test Results (Project 2, against previous):
 (+) pass tests/filesys/base/sm-seq-block
 (+) pass tests/filesys/base/sm-seq-random
 (=) FAIL tests/filesys/base/syn-read
-(=) FAIL tests/filesys/base/syn-remove
+(+) pass tests/filesys/base/syn-remove
 (=) FAIL tests/filesys/base/syn-write
-11 of 76 tests failed.
+10 of 76 tests failed.
 
 ==================================

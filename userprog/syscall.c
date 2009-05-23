@@ -32,6 +32,7 @@ static int sys_wait (pid_t pid);
 static int sys_filesize (int fd);
 static int sys_tell (int fd);
 static int sys_seek (int fd, unsigned pos);
+static int sys_remove (const char *file);
 
 static struct file *find_file_by_fd (int fd);
 static struct fd_elem *find_fd_elem_by_fd (int fd);
@@ -71,6 +72,7 @@ syscall_init (void)
   syscall_vec[SYS_FILESIZE] = (handler)sys_filesize;
   syscall_vec[SYS_SEEK] = (handler)sys_seek;
   syscall_vec[SYS_TELL] = (handler)sys_tell;
+  syscall_vec[SYS_REMOVE] = (handler)sys_remove;
   
   list_init (&file_list);
   /* == My Implementation */
@@ -231,6 +233,7 @@ sys_read (int fd, void *buffer, unsigned size)
         return -1;
       return file_read (f, buffer, size);
     }
+  return -1; /* Should NOT reach here */
 }
 
 static int
@@ -313,4 +316,15 @@ sys_seek (int fd, unsigned pos)
     return -1;
   file_seek (f, pos);
   return 0; /* Not used */
+}
+
+static int
+sys_remove (const char *file)
+{
+  if (!file)
+    return false;
+  if (!is_user_vaddr (file))
+    sys_exit (-1);
+    
+  return filesys_remove (file);
 }
