@@ -192,42 +192,54 @@ sys_open (const char *file)
 {
   struct file *f;
   struct fd_elem *fde;
+  int ret;
   
+  ret = -1; /* Initialize to -1 */
   if (!file) /* file == NULL */
     return -1;
-  
+  lock_acquire (&file_lock);
   f = filesys_open (file);
   if (!f) /* Bad file name */
-    return -1;
+    goto done;
     
   fde = (struct fd_elem *)palloc_get_page (0);
   if (!fde) /* Not enough memory */
     {
       file_close (f);
-      return -1;
+      goto done;
     }
     
   fde->file = f;
   fde->fd = alloc_fid ();
   list_push_back (&file_list, &fde->elem);
   list_push_back (&thread_current ()->files, &fde->thread_elem);
-  return fde->fd;
+  ret = fde->fd;
+done:
+  lock_release (&file_lock);
+  return ret;
 }
 
 static int
 sys_close(int fd)
 {
   struct fd_elem *f;
+  int ret;
   
+  ret = -1;
+  lock_acquire (&file_lock);
   f = find_fd_elem_by_fd_in_process (fd);
   
   if (!f) /* Bad fd */
-    return -1;
+    goto done;
   file_close (f->file);
   list_remove (&f->elem);
   list_remove (&f->thread_elem);
   palloc_free_page (f);
-  return 0;
+  ret = 0;
+  
+done:
+  lock_release (&file_lock);
+  return ret;
 }
 
 static int
@@ -237,6 +249,7 @@ sys_read (int fd, void *buffer, unsigned size)
   unsigned i;
   int ret;
   
+  ret = -1; /* Initialize to zero */
   lock_acquire (&file_lock);
   if (fd == STDIN_FILENO) /* stdin */
     {
@@ -246,10 +259,7 @@ sys_read (int fd, void *buffer, unsigned size)
       goto done;
     }
   else if (fd == STDOUT_FILENO) /* stdout */
-    {
-      ret = -1;
       goto done;
-    }
   else if (!is_user_vaddr (buffer) || !is_user_vaddr (buffer + size)) /* bad ptr */
     {
       lock_release (&file_lock);
@@ -259,10 +269,7 @@ sys_read (int fd, void *buffer, unsigned size)
     {
       f = find_file_by_fd (fd);
       if (!f)
-        {
-          ret = -1;
-          goto done;
-        }
+        goto done;
       ret = file_read (f, buffer, size);
     }
     
