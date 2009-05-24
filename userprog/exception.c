@@ -6,6 +6,7 @@
 #include "threads/thread.h"
 /* My Implementation */
 #include "threads/vaddr.h"
+#include "userprog/syscall.h"
 /* == My Implementation */
 
 /* Number of page faults processed. */
@@ -129,6 +130,10 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  
+  /* My Implementation */
+  struct thread *t;
+  /* == My Implementation */
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -152,11 +157,9 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* My Implementation */
-  if (not_present || is_kernel_vaddr (fault_addr) && user)
-    {
-      thread_current ()->ret_status = -1;
-      thread_exit ();
-    }
+  t = thread_current ();
+  if (not_present || (is_kernel_vaddr (fault_addr) && user))
+    sys_exit (-1);
   /* == My Implementation */
   
   /* To implement virtual memory, delete the rest of the function

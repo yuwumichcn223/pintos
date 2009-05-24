@@ -11,6 +11,7 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "devices/input.h"
 #include "threads/synch.h"
 /* == My Implementation */
@@ -22,13 +23,12 @@ static void syscall_handler (struct intr_frame *);
 typedef int pid_t;
 
 static int sys_write (int fd, const void *buffer, unsigned length);
-static int sys_exit (int status);
 static int sys_halt (void);
 static int sys_create (const char *file, unsigned initial_size);
 static int sys_open (const char *file);
 static int sys_close (int fd);
 static int sys_read (int fd, void *buffer, unsigned size);
-static int sys_exec (const char * cmd);
+static int sys_exec (const char *cmd);
 static int sys_wait (pid_t pid);
 static int sys_filesize (int fd);
 static int sys_tell (int fd);
@@ -39,7 +39,6 @@ static struct file *find_file_by_fd (int fd);
 static struct fd_elem *find_fd_elem_by_fd (int fd);
 static int alloc_fid (void);
 static struct fd_elem *find_fd_elem_by_fd_in_process (int fd);
-static struct file *find_file_by_fd_in_process (int fd);
 
 typedef int (*handler) (uint32_t, uint32_t, uint32_t);
 static handler syscall_vec[128];
@@ -124,14 +123,12 @@ sys_write (int fd, const void *buffer, unsigned length)
   struct file * f;
   int ret;
   
+  ret = -1;
   lock_acquire (&file_lock);
   if (fd == STDOUT_FILENO) /* stdout */
     putbuf (buffer, length);
   else if (fd == STDIN_FILENO) /* stdin */
-    {
-      ret = -1;
-      goto done;
-    }
+    goto done;
   else if (!is_user_vaddr (buffer) || !is_user_vaddr (buffer + length))
     {
       lock_release (&file_lock);
@@ -141,10 +138,7 @@ sys_write (int fd, const void *buffer, unsigned length)
     {
       f = find_file_by_fd (fd);
       if (!f)
-        {
-          ret = -1;
-          goto done;
-        }
+        goto done;
         
       ret = file_write (f, buffer, length);
     }
@@ -154,7 +148,7 @@ done:
   return ret;
 }
 
-static int
+int
 sys_exit (int status)
 {
   /* Close all the files */
@@ -164,7 +158,7 @@ sys_exit (int status)
   t = thread_current ();
   while (!list_empty (&t->files))
     {
-      l = list_pop_front (&t->files);
+      l = list_begin (&t->files);
       sys_close (list_entry (l, struct fd_elem, thread_elem)->fd);
     }
   
@@ -197,12 +191,13 @@ sys_open (const char *file)
   ret = -1; /* Initialize to -1 */
   if (!file) /* file == NULL */
     return -1;
-  lock_acquire (&file_lock);
+  if (!is_user_vaddr (file))
+    sys_exit (-1);
   f = filesys_open (file);
   if (!f) /* Bad file name */
     goto done;
     
-  fde = (struct fd_elem *)palloc_get_page (0);
+  fde = (struct fd_elem *)malloc (sizeof (struct fd_elem));
   if (!fde) /* Not enough memory */
     {
       file_close (f);
@@ -215,7 +210,6 @@ sys_open (const char *file)
   list_push_back (&thread_current ()->files, &fde->thread_elem);
   ret = fde->fd;
 done:
-  lock_release (&file_lock);
   return ret;
 }
 
@@ -225,8 +219,6 @@ sys_close(int fd)
   struct fd_elem *f;
   int ret;
   
-  ret = -1;
-  lock_acquire (&file_lock);
   f = find_fd_elem_by_fd_in_process (fd);
   
   if (!f) /* Bad fd */
@@ -234,12 +226,10 @@ sys_close(int fd)
   file_close (f->file);
   list_remove (&f->elem);
   list_remove (&f->thread_elem);
-  palloc_free_page (f);
-  ret = 0;
+  free (f);
   
 done:
-  lock_release (&file_lock);
-  return ret;
+  return 0;
 }
 
 static int
@@ -279,7 +269,7 @@ done:
 }
 
 static int
-sys_exec (const char * cmd)
+sys_exec (const char *cmd)
 {
   int ret;
   
@@ -387,21 +377,10 @@ find_fd_elem_by_fd_in_process (int fd)
   
   for (l = list_begin (&t->files); l != list_end (&t->files); l = list_next (l))
     {
-      ret = list_entry (l, struct fd_elem, elem);
+      ret = list_entry (l, struct fd_elem, thread_elem);
       if (ret->fd == fd)
         return ret;
     }
     
   return NULL;
-}
-
-static struct file *
-find_file_by_fd_in_process (int fd)
-{
-  struct fd_elem *ret;
-  
-  ret = find_fd_elem_by_fd_in_process (fd);
-  if (!ret)
-    return NULL;
-  return ret->file;
 }

@@ -230,11 +230,12 @@ lock_acquire (struct lock *lock)
   struct lock *another;
   enum intr_level old_level;
   
+  old_level = intr_disable ();
   curr = thread_current ();
+#ifndef USERPROG
   thrd = lock->holder;
   curr->blocked = another = lock;
   
-  old_level = intr_disable ();
   
   while (!thread_mlfqs && thrd != NULL && thrd->priority < curr->priority)
     {
@@ -250,7 +251,7 @@ lock_acquire (struct lock *lock)
       else
         break;
     }
-  
+#endif
   /* == My Implementation */
 
   sema_down (&lock->semaphore);
@@ -259,13 +260,13 @@ lock_acquire (struct lock *lock)
   
   /* My Implementation */
   lock->holder = curr;
-  
+#ifndef USERPROG
   if (!thread_mlfqs)
     {
       curr->blocked = NULL;
       list_insert_ordered (&lock->holder->locks, &lock->holder_elem, outstanding_priority, NULL);
     }
-  
+#endif
   intr_set_level (old_level);
   /* == My Implementation */
   
@@ -290,10 +291,12 @@ lock_try_acquire (struct lock *lock)
     /* Old Implementation
     lock->holder = thread_current (); */
     /* My Implementation */
+#ifndef USERPROG
     {
       lock->holder = thread_current ();
       list_push_back (&lock->holder->locks, &lock->holder_elem);
     }
+#endif
     /* == My Implementation */
   return success;
 }
@@ -314,8 +317,10 @@ lock_release (struct lock *lock)
   
   curr = thread_current ();
   
+#ifndef USERPROG
   if (!thread_mlfqs)
     ASSERT (curr->blocked == NULL);
+#endif
   /* == My Implementation */
   
   ASSERT (lock != NULL);
@@ -327,6 +332,7 @@ lock_release (struct lock *lock)
   sema_up (&lock->semaphore);
   
   /* My Implementation */
+#ifndef USERPROG
   if (!thread_mlfqs)
     {
       list_remove (&lock->holder_elem);
@@ -346,7 +352,7 @@ lock_release (struct lock *lock)
             thread_set_priority (curr->base_priority);
         }
     }
-    
+#endif
   intr_set_level (old_level);
   /* == My Implementation */
   

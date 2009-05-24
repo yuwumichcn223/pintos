@@ -197,6 +197,10 @@ thread_create (const char *name, int priority,
   
   /* My Implementation */
   ASSERT (priority >= PRI_MIN && priority <= PRI_MAX);
+#ifdef USERPROG
+  if (list_size (&all_list) >= 35) /* Maximum threads */
+    return TID_ERROR;
+#endif
   /* == My Implementation */
 
   /* Allocate thread. */
@@ -233,8 +237,11 @@ thread_create (const char *name, int priority,
   thread_unblock (t);
   
   /* My Implementation */
+#ifndef USERPROG
   if (thread_mlfqs)
     thread_calculate_priority_other (t);
+#endif
+
   if (priority > thread_current ()->priority)
     thread_yield_head (thread_current ()); 
     
@@ -285,7 +292,11 @@ thread_unblock (struct thread *t)
   /* Old Implementation
   list_push_back (&ready_list, &t->elem); */
   /* My Implementation */
+#ifndef USERPROG
   list_insert_ordered (&ready_list, &t->elem, thread_insert_less_tail, NULL);
+#else
+  list_push_back (&ready_list, &t->elem);
+#endif
   /* == My Implementation */
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -333,6 +344,9 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+  //ASSERT (list_size (&thread_current ()->files) == 0);
+  if (list_size (&thread_current ()->files) != 0)
+    printf ("Still %d files opening...", list_size (&thread_current ()->files));
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -413,9 +427,15 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority; */
   
   /* My Implementation */
+#ifndef USERPROG
   thread_set_priority_other (thread_current (), new_priority, true);
+#else
+  thread_current ()->priority = new_priority;
+#endif
   /* == My Implementation */
 }
+
+#ifndef USERPROG
 
 /* My Implementation
  * if they are not the same value
@@ -451,12 +471,16 @@ thread_set_priority_other (struct thread *curr, int new_priority, bool forced)
 }
 /* == My Implementation */
 
+#endif
+
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 { 
   return thread_current ()->priority;
 }
+
+#ifndef USERPROG
 
 /* Sets the current thread's nice value to NICE. */
 void
@@ -581,6 +605,8 @@ thread_calculate_priority_other (struct thread *curr)
     curr->priority = PRI_MIN;
 }
 
+#endif
+
 /* == My Implementation */
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -588,7 +614,11 @@ int
 thread_get_recent_cpu (void) 
 {
   /* My Implementation */
-  return CONVERT_TO_INT_NEAR (100 * thread_current ()->recent_cpu); 
+#ifndef USERPROG
+  return CONVERT_TO_INT_NEAR (100 * thread_current ()->recent_cpu);
+#else
+  return 0;
+#endif
   /* == My Implementation */
   /* Old Implementation
   return 0; */
@@ -681,6 +711,7 @@ init_thread (struct thread *t, const char *name, int priority)
   /* Old Implementation
   t->priority = priority; */
   /* My Implementation */
+#ifndef USERPROG
   if (!thread_mlfqs)
   {
     t->base_priority = t->priority = priority;
@@ -696,6 +727,7 @@ init_thread (struct thread *t, const char *name, int priority)
     else
       t->recent_cpu = thread_get_recent_cpu ();
   }
+#endif
   /* == My Implementation */
   
   t->magic = THREAD_MAGIC;

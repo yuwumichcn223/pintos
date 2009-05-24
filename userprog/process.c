@@ -17,6 +17,10 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+/* My Implementation */
+#include "threads/malloc.h"
+#include "userprog/syscall.h"
+/* == My Implementation */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -36,6 +40,8 @@ process_execute (const char *file_name)
   char *fn;
   
   struct thread *t;
+  
+  tid = TID_ERROR;
   /* == My Implementation */
 
   /* Make a copy of FILE_NAME.
@@ -46,8 +52,10 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
   
   /* My Implementation */
-  fn = palloc_get_page (0);
-  strlcpy (fn, file_name, PGSIZE);
+  fn = malloc (strlen (file_name) + 1);
+  if (!fn)
+    goto done;
+  memcpy (fn, file_name, strlen (file_name) + 1);
   file_name = strtok_r (fn, " ", &save);
   /* == My Implementation */
   
@@ -57,6 +65,8 @@ process_execute (const char *file_name)
   
   /* My Implementation */
   tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+  if (tid == TID_ERROR)
+    goto done;
   /* Wait for child thread to load */
   t = get_thread_by_tid (tid);
   sema_down (&t->wait);
@@ -65,9 +75,10 @@ process_execute (const char *file_name)
   thread_unblock (t);
   if (t->ret_status == -1)
     process_wait (t->tid);
-  palloc_free_page (fn);
-  /* == My Implementation */
   
+done:
+  free (fn);
+  /* == My Implementation */
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -86,7 +97,7 @@ start_process (void *file_name_)
   char *token, *save_ptr;
   void *start;
   int argc, i;
-  int *argv_off; /* Maximum of 128 arguments */
+  int *argv_off; /* Maximum of 2 arguments */
   size_t file_name_len;
   struct thread *t;
   /* == My Implementation */
@@ -100,7 +111,9 @@ start_process (void *file_name_)
   /* My Implementation */
   t = thread_current ();
   argc = 0;
-  argv_off = palloc_get_page (0);
+  argv_off = malloc (32 * sizeof (int));
+  if (!argv_off)
+    goto exit;
   file_name_len = strlen (file_name);
   argv_off[0] = 0;
   for (
@@ -109,16 +122,8 @@ start_process (void *file_name_)
        token = strtok_r (NULL, " ", &save_ptr)
        )
         {
-          if (argc >= 128)
-            {
-              palloc_free_page (file_name);
-              palloc_free_page (argv_off);
-              thread_exit ();
-            }
           while (*(save_ptr) == ' ')
-            {
-              ++save_ptr;
-            }
+            ++save_ptr;
           argv_off[++argc] = save_ptr - file_name;
         }
   /* == My Implementation */
@@ -158,6 +163,8 @@ start_process (void *file_name_)
     }
   else
     {
+      free (argv_off);
+exit:
       t->ret_status = -1;
       sema_up (&t->wait);
       intr_disable ();
@@ -166,7 +173,7 @@ start_process (void *file_name_)
       thread_exit ();
     }
   
-  palloc_free_page (argv_off);
+  free (argv_off);
   /* == My Implementation */
   
   /* If load failed, quit. */
@@ -205,9 +212,11 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   int ret;
   
   t = get_thread_by_tid (child_tid);
-  if (!t || t->status == THREAD_DYING || t->ret_status != RET_STATUS_DEFAULT)
+  if (!t || t->status == THREAD_DYING || t->parent == thread_current ())
     return -1;
-  //sema_down (&t->wait);
+  if (t->ret_status != RET_STATUS_DEFAULT)
+    return t->ret_status;
+
   t->parent = thread_current ();
   intr_disable ();
   thread_block ();
@@ -216,7 +225,7 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   printf ("%s: exit(%d)\n", t->name, t->ret_status);
   thread_unblock (t);
   
-  return ret; /* return value NOT implemented */
+  return ret;
   /* == My Implementation */
 }
 
@@ -231,8 +240,8 @@ process_exit (void)
   //sema_up (&cur->wait);
   if (cur->parent)
     thread_unblock (cur->parent);
-  cur->parent = NULL;
   file_close (cur->self);
+  cur->self = NULL;
   intr_disable ();
   thread_block ();
   intr_enable ();

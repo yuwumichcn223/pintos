@@ -254,16 +254,16 @@ Test Results (Project 2, against previous):
 (=) pass tests/userprog/wait-bad-pid
 (=) pass tests/userprog/multi-recurse
 (=) pass tests/userprog/multi-child-fd
-(+) pass tests/userprog/rox-simple
-(+) pass tests/userprog/rox-child
-(+) pass tests/userprog/rox-multichild
+(=) pass tests/userprog/rox-simple
+(=) pass tests/userprog/rox-child
+(=) pass tests/userprog/rox-multichild
 (=) pass tests/userprog/bad-read
 (=) pass tests/userprog/bad-write
 (=) pass tests/userprog/bad-read2
 (=) pass tests/userprog/bad-write2
 (=) pass tests/userprog/bad-jump
 (=) pass tests/userprog/bad-jump2
-(=) FAIL tests/userprog/no-vm/multi-oom
+(+) pass tests/userprog/no-vm/multi-oom
 (=) pass tests/filesys/base/lg-create
 (=) pass tests/filesys/base/lg-full
 (=) pass tests/filesys/base/lg-random
@@ -274,9 +274,9 @@ Test Results (Project 2, against previous):
 (=) pass tests/filesys/base/sm-random
 (=) pass tests/filesys/base/sm-seq-block
 (=) pass tests/filesys/base/sm-seq-random
-(=) FAIL tests/filesys/base/syn-read
+(+) pass tests/filesys/base/syn-read
 (=) pass tests/filesys/base/syn-remove
-(=) FAIL tests/filesys/base/syn-write
-3 of 76 tests failed.
+(+) pass tests/filesys/base/syn-write
+All tests passed.
 
 ==================================
