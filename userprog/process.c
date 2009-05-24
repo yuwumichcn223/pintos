@@ -72,7 +72,8 @@ process_execute (const char *file_name)
   sema_down (&t->wait);
   if (t->ret_status == -1)
     tid = TID_ERROR;
-  thread_unblock (t);
+  while (t->status == THREAD_BLOCKED)
+    thread_unblock (t);
   if (t->ret_status == -1)
     process_wait (t->tid);
   
@@ -223,7 +224,8 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   intr_enable ();
   ret = t->ret_status;
   printf ("%s: exit(%d)\n", t->name, t->ret_status);
-  thread_unblock (t);
+  while (t->status == THREAD_BLOCKED)
+    thread_unblock (t);
   
   return ret;
   /* == My Implementation */
@@ -237,8 +239,7 @@ process_exit (void)
   uint32_t *pd;
 
   /* My Implementation */
-  //sema_up (&cur->wait);
-  if (cur->parent)
+  while (cur->parent && cur->parent->status == THREAD_BLOCKED)
     thread_unblock (cur->parent);
   file_close (cur->self);
   cur->self = NULL;
