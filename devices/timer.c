@@ -193,7 +193,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
   
   /* My Implementation */
-#ifndef USERPROG
   if (thread_mlfqs)
   {
     thread_current ()->recent_cpu = INT_ADD (thread_current ()->recent_cpu, 1);
@@ -205,7 +204,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     if (ticks % 4 == 3)
       thread_calculate_priority_for_all ();
   }
-#endif
   alarm_check (); /* Check the alarm and wake up threads */
   /* == My Implementation */
 }

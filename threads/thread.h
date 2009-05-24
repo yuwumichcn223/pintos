@@ -110,7 +110,6 @@ struct thread
     
     /* My Implementation */
     struct alarm alrm;                  /* alarm object */
-#ifndef USERPROG
     int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
     struct list locks;                  /* the list of locks that it holds */
     bool donated;                       /* whether the thread has been donated priority */
@@ -118,7 +117,6 @@ struct thread
     
     int nice;                           /* nice value of a thread */
     int recent_cpu;                     /* recent cpu usage */
-#endif
     /* == My Implementation */
     
 #ifdef USERPROG
