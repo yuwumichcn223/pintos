@@ -168,6 +168,18 @@ modified threads/thread.h
 modified userprog/process.c
 modified userprog/syscall.c
 
+*****************
+
+SUN, May 24, 2009
+Fixed bug in closing files
+All tests passed
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/syscall.c
+modified devices/timer.c
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
@@ -199,7 +211,7 @@ Test Results (Project 1):
 (=) pass tests/threads/mlfqs-block
 All tests passed.
 
-Test Results (Project 2, against previous):
+Test Results (Project 2):
 -------------
 (=) pass tests/userprog/args-none
 (=) pass tests/userprog/args-single
@@ -263,7 +275,7 @@ Test Results (Project 2, against previous):
 (=) pass tests/userprog/bad-write2
 (=) pass tests/userprog/bad-jump
 (=) pass tests/userprog/bad-jump2
-(+) pass tests/userprog/no-vm/multi-oom
+(=) pass tests/userprog/no-vm/multi-oom
 (=) pass tests/filesys/base/lg-create
 (=) pass tests/filesys/base/lg-full
 (=) pass tests/filesys/base/lg-random
@@ -274,9 +286,9 @@ Test Results (Project 2, against previous):
 (=) pass tests/filesys/base/sm-random
 (=) pass tests/filesys/base/sm-seq-block
 (=) pass tests/filesys/base/sm-seq-random
-(+) pass tests/filesys/base/syn-read
+(=) pass tests/filesys/base/syn-read
 (=) pass tests/filesys/base/syn-remove
-(+) pass tests/filesys/base/syn-write
+(=) pass tests/filesys/base/syn-write
 All tests passed.
 
 ==================================
