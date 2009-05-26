@@ -180,6 +180,13 @@ modified userprog/process.c
 modified userprog/syscall.c
 modified devices/timer.c
 
+*****************
+
+TUE, May 26, 2009
+Fixed bug running in bochs
+
+modified threads/thread.c
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
