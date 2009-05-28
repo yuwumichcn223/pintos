@@ -187,6 +187,15 @@ Fixed bug running in bochs
 
 modified threads/thread.c
 
+*****************
+
+THU, May 28, 2009
+Fixed issue 1
+
+modified threads/thread.h
+modified threads/thread.c
+modified userprog/process.c
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single

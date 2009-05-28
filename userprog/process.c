@@ -222,9 +222,6 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
       goto done;
     }
 
-  /*intr_disable ();
-  thread_block ();
-  intr_enable ();*/
   sema_down (&t->wait);
   ret = t->ret_status;
   printf ("%s: exit(%d)\n", t->name, t->ret_status);
