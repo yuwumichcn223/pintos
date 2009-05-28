@@ -212,21 +212,27 @@ process_wait (tid_t child_tid /* Old Implementation UNUSED */)
   struct thread *t;
   int ret;
   
+  ret = -1;
   t = get_thread_by_tid (child_tid);
-  if (!t || t->status == THREAD_DYING || t->parent == thread_current ())
-    return -1;
-  if (t->ret_status != RET_STATUS_DEFAULT)
-    return t->ret_status;
+  if (!t || t->status == THREAD_DYING || t->ret_status == RET_STATUS_INVALID)
+    goto done;
+  if (t->ret_status != RET_STATUS_DEFAULT && t->ret_status != RET_STATUS_INVALID)
+    {
+      ret = t->ret_status;
+      goto done;
+    }
 
-  t->parent = thread_current ();
-  intr_disable ();
+  /*intr_disable ();
   thread_block ();
-  intr_enable ();
+  intr_enable ();*/
+  sema_down (&t->wait);
   ret = t->ret_status;
   printf ("%s: exit(%d)\n", t->name, t->ret_status);
   while (t->status == THREAD_BLOCKED)
     thread_unblock (t);
   
+done:
+  t->ret_status = RET_STATUS_INVALID;
   return ret;
   /* == My Implementation */
 }
@@ -239,13 +245,17 @@ process_exit (void)
   uint32_t *pd;
 
   /* My Implementation */
-  while (cur->parent && cur->parent->status == THREAD_BLOCKED)
-    thread_unblock (cur->parent);
+  while (!list_empty (&cur->wait.waiters))
+    sema_up (&cur->wait);
   file_close (cur->self);
   cur->self = NULL;
-  intr_disable ();
-  thread_block ();
-  intr_enable ();
+  cur->exited = true;
+  if (cur->parent)
+    {
+      intr_disable ();
+      thread_block ();
+      intr_enable ();
+    }
   /* == My Implementation */
   
   /* Destroy the current process's page directory and switch back
