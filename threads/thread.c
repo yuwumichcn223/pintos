@@ -197,10 +197,6 @@ thread_create (const char *name, int priority,
   
   /* My Implementation */
   ASSERT (priority >= PRI_MIN && priority <= PRI_MAX);
-#ifdef USERPROG
-  if (list_size (&all_list) >= 35) /* Maximum capacity of threads */
-    return TID_ERROR;
-#endif
   /* == My Implementation */
 
   /* Allocate thread. */
