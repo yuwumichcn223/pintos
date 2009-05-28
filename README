@@ -1,0 +1,311 @@
+==================================
+This is the README file for the pintos curriculum project
+++++++++++++++++++++++++++++++++++
+Copyright by Christopher K. Xu
+
+All source code used in the project are for curriculum use only.
+All source code and documentation are NOT free to copy without a writing permission.
+
+This project has brought code from other projects, such as the original pintos projects.
+See LICENSE for license information for these projects.
+++++++++++++++++++++++++++++++++++
+
+Project 1: Threads
+
+Requirements:
+
+1) Alarm Clock
+   * Re-implement timer_sleep() in devices/timer.c
+   * No busy-waiting
+2) Priority-Based Scheduling
+   * Implement priority scheduling
+   * Implement priority donation for locks
+   * Implement set/get priority functions
+3) Advanced Scheduling
+   * Implement 4.4BSD Scheduler
+
+Changelogs:
+
+SAT, Mar 28, 2009
+git repo initialized
+project1 branched
+
+*****************
+
+SUN, Mar 29, 2009
+Re-implemented alarm clock
+alarm_simultaneous failed, need to work on it
+
+added threads/alarm.c
+added threads/alarm.h
+modified threads/init.c
+modified threads/thread.c
+modified threads/thread.h
+modified devices/timer.c
+modified Makefile.build
+
+*****************
+
+TUE, Mar 31, 2009
+Implementing basic priority scheduling
+added sort functions to ready_list
+
+modified threads/thread.c
+
+*****************
+
+FRI, Apr 03, 2009
+Implementing donation
+Re-implementing thread_set_priority
+
+*****************
+
+SAT, Apr 04, 2009
+Implemented multiple donation
+Passed priority-donate-multiple and priority-donate-multiple2
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+modified threads/synch.h
+
+*****************
+
+WED, Apr 08, 2009
+Implemented priority for semaphores
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+
+*****************
+
+THU, Apr 09, 2009
+Implemented round-robin on same priority
+Implemented lower priority
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+
+*****************
+
+FRI, Apr 10, 2009
+Finished priority tasks
+Fixed alarm-simultaneous
+Ready to tag
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+modified devices/timer.c
+modified threads/alarm.c
+
+*****************
+
+SUN, Apr 12, 2009
+Implemented basic algorithms for mlfqs
+
+modified threads/thread.c
+modified threads/thread.h
+modified threads/synch.c
+modified devices/timer.c
+
+*****************
+
+TUE, Apr 14, 2009
+Passed mlfqs-nice-2 and mlfqs-nice-10
+
+modified threads/thread.c
+modified devices/timer.c
+
+*****************
+
+WED, Apr 15, 2009
+Passed mlfqs-block
+
+modified threads/synch.c
+
+*****************
+
+Project 2: User Programs
+
+Requirements:
+
+1) Process Termination Messages
+   * Print termination messages when process exits
+2) Argument Passing
+   * Extend process_execute() to allow passing arguments
+   * Parse the arguments so that the program could read them
+3) System Calls
+   * Implement system call mechanism
+   * Implement basic system calls listed in "lib/syscall-nr.h"
+   * Protection from invalid system calls
+   * Synchronize system calls
+4) Deny Writes to Executables
+   * Deny write operation to executable files currently running
+
+Changelogs:
+
+FRI, May 22, 2009
+Passed 9 tests, tagged args_freeze
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/process.h
+modified userprog/syscall.c
+
+*****************
+
+SAT, May 23, 2009
+Implemented all system call
+Implemented denying writes to executables
+3/76 on pintos
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/syscall.c
+
+*****************
+
+SUN, May 24, 2009
+Fixed bug in closing files
+All tests passed
+
+modified threads/thread.c
+modified threads/thread.h
+modified userprog/process.c
+modified userprog/syscall.c
+modified devices/timer.c
+
+*****************
+
+TUE, May 26, 2009
+Fixed bug running in bochs
+
+modified threads/thread.c
+
+*****************
+
+THU, May 28, 2009
+Fixed issue 1
+Loosen the limits of total capacity of threads
+
+modified threads/thread.h
+modified threads/thread.c
+modified userprog/process.c
+
+Test Results (Project 1):
+-------------
+(=) pass tests/threads/alarm-single
+(=) pass tests/threads/alarm-multiple
+(=) pass tests/threads/alarm-simultaneous
+(=) pass tests/threads/alarm-priority
+(=) pass tests/threads/alarm-zero
+(=) pass tests/threads/alarm-negative
+(=) pass tests/threads/priority-change
+(=) pass tests/threads/priority-donate-one
+(=) pass tests/threads/priority-donate-multiple
+(=) pass tests/threads/priority-donate-multiple2
+(=) pass tests/threads/priority-donate-nest
+(=) pass tests/threads/priority-donate-sema
+(=) pass tests/threads/priority-donate-lower
+(=) pass tests/threads/priority-fifo
+(=) pass tests/threads/priority-preempt
+(=) pass tests/threads/priority-sema
+(=) pass tests/threads/priority-condvar
+(=) pass tests/threads/priority-donate-chain
+(=) pass tests/threads/mlfqs-load-1
+(=) pass tests/threads/mlfqs-load-60
+(=) pass tests/threads/mlfqs-load-avg
+(=) pass tests/threads/mlfqs-recent-1
+(=) pass tests/threads/mlfqs-fair-2
+(=) pass tests/threads/mlfqs-fair-20
+(=) pass tests/threads/mlfqs-nice-2
+(=) pass tests/threads/mlfqs-nice-10
+(=) pass tests/threads/mlfqs-block
+All tests passed.
+
+Test Results (Project 2):
+-------------
+(=) pass tests/userprog/args-none
+(=) pass tests/userprog/args-single
+(=) pass tests/userprog/args-multiple
+(=) pass tests/userprog/args-many
+(=) pass tests/userprog/args-dbl-space
+(=) pass tests/userprog/sc-bad-sp
+(=) pass tests/userprog/sc-bad-arg
+(=) pass tests/userprog/sc-boundary
+(=) pass tests/userprog/sc-boundary-2
+(=) pass tests/userprog/halt
+(=) pass tests/userprog/exit
+(=) pass tests/userprog/create-normal
+(=) pass tests/userprog/create-empty
+(=) pass tests/userprog/create-null
+(=) pass tests/userprog/create-bad-ptr
+(=) pass tests/userprog/create-long
+(=) pass tests/userprog/create-exists
+(=) pass tests/userprog/create-bound
+(=) pass tests/userprog/open-normal
+(=) pass tests/userprog/open-missing
+(=) pass tests/userprog/open-boundary
+(=) pass tests/userprog/open-empty
+(=) pass tests/userprog/open-null
+(=) pass tests/userprog/open-bad-ptr
+(=) pass tests/userprog/open-twice
+(=) pass tests/userprog/close-normal
+(=) pass tests/userprog/close-twice
+(=) pass tests/userprog/close-stdin
+(=) pass tests/userprog/close-stdout
+(=) pass tests/userprog/close-bad-fd
+(=) pass tests/userprog/read-normal
+(=) pass tests/userprog/read-bad-ptr
+(=) pass tests/userprog/read-boundary
+(=) pass tests/userprog/read-zero
+(=) pass tests/userprog/read-stdout
+(=) pass tests/userprog/read-bad-fd
+(=) pass tests/userprog/write-normal
+(=) pass tests/userprog/write-bad-ptr
+(=) pass tests/userprog/write-boundary
+(=) pass tests/userprog/write-zero
+(=) pass tests/userprog/write-stdin
+(=) pass tests/userprog/write-bad-fd
+(=) pass tests/userprog/exec-once
+(=) pass tests/userprog/exec-arg
+(=) pass tests/userprog/exec-multiple
+(=) pass tests/userprog/exec-missing
+(=) pass tests/userprog/exec-bad-ptr
+(=) pass tests/userprog/wait-simple
+(=) pass tests/userprog/wait-twice
+(=) pass tests/userprog/wait-killed
+(=) pass tests/userprog/wait-bad-pid
+(=) pass tests/userprog/multi-recurse
+(=) pass tests/userprog/multi-child-fd
+(=) pass tests/userprog/rox-simple
+(=) pass tests/userprog/rox-child
+(=) pass tests/userprog/rox-multichild
+(=) pass tests/userprog/bad-read
+(=) pass tests/userprog/bad-write
+(=) pass tests/userprog/bad-read2
+(=) pass tests/userprog/bad-write2
+(=) pass tests/userprog/bad-jump
+(=) pass tests/userprog/bad-jump2
+(=) pass tests/userprog/no-vm/multi-oom
+(=) pass tests/filesys/base/lg-create
+(=) pass tests/filesys/base/lg-full
+(=) pass tests/filesys/base/lg-random
+(=) pass tests/filesys/base/lg-seq-block
+(=) pass tests/filesys/base/lg-seq-random
+(=) pass tests/filesys/base/sm-create
+(=) pass tests/filesys/base/sm-full
+(=) pass tests/filesys/base/sm-random
+(=) pass tests/filesys/base/sm-seq-block
+(=) pass tests/filesys/base/sm-seq-random
+(=) pass tests/filesys/base/syn-read
+(=) pass tests/filesys/base/syn-remove
+(=) pass tests/filesys/base/syn-write
+All tests passed.
+
+==================================

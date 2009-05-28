@@ -5,6 +5,11 @@
 #include <list.h>
 #include <stdint.h>
 
+/* My Implementation */
+#include "threads/alarm.h"
+#include "threads/synch.h"
+/* == My Implementation */
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -23,6 +28,17 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* My Implementation */
+#define NICE_MAX 20
+#define NICE_DEFAULT 0
+#define NICE_MIN -20
+
+#ifdef USERPROG
+# define RET_STATUS_DEFAULT 0xcdcdcdcd
+# define RET_STATUS_INVALID 0xdcdcdcdc
+#endif
+/* == My Implementation */
 
 /* A kernel thread or user process.
 
@@ -92,10 +108,32 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    
+    /* My Implementation */
+    struct alarm alrm;                  /* alarm object */
+    int base_priority;                  /* priority before donate, if nobody donates, then it should be same as priority */
+    struct list locks;                  /* the list of locks that it holds */
+    bool donated;                       /* whether the thread has been donated priority */
+    struct lock *blocked;               /* by which lock this thread is blocked */
+    
+    int nice;                           /* nice value of a thread */
+    int recent_cpu;                     /* recent cpu usage */
+    /* == My Implementation */
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    
+    /* My Implementation */
+    struct semaphore wait;              /* semaphore for process_wait */
+    int ret_status;                     /* return status */
+    struct list files;                  /* all opened files */
+    struct file *self;                  /* the image file on the disk */
+    struct thread *parent;              /* parent process */
+    struct list children;               /* all children process */
+    struct list_elem children_elem;     /* in children list */
+    bool exited;                        /* whether the thread is exited or not */
+    /* == My Implementation */
 #endif
 
     /* Owned by thread.c. */
@@ -129,6 +167,19 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
+
+/* My Implementation */
+void sort_thread_list (struct list *l);
+void thread_set_priority_other (struct thread *curr, int new_priority, bool forced);
+void thread_yield_head (struct thread *curr);
+
+void thread_calculate_load_avg (void);
+void thread_calculate_recent_cpu (void);
+void thread_calculate_priority (void);
+void thread_calculate_recent_cpu_for_all (void);
+void thread_calculate_priority_for_all (void);
+struct thread *get_thread_by_tid (tid_t);
+/* == My Implementation */
 
 int thread_get_priority (void);
 void thread_set_priority (int);

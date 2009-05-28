@@ -21,6 +21,8 @@ threads_SRC += threads/synch.c		# Synchronization.
 threads_SRC += threads/palloc.c		# Page allocator.
 threads_SRC += threads/malloc.c		# Subpage allocator.
 threads_SRC += threads/start.S		# Startup code.
+# My Implementation
+threads_SRC += threads/alarm.c		# Alarm clock.
 
 # Device driver code.
 devices_SRC  = devices/timer.c		# Timer device.
