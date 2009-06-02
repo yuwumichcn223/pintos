@@ -197,6 +197,21 @@ modified threads/thread.h
 modified threads/thread.c
 modified userprog/process.c
 
+*****************
+
+Project 3: Virtual Memory
+
+Requirements:
+
+1) Paging
+   * Implement paging for segments loaded from executables
+   * Swap pages in & out
+2) Stack Growth
+   * Allocate additional pages if the stack grow big
+   * Place a limit on how big the stack can grow
+3) Memory Mapped Files
+   * Implement memory mapped files, including the system calls(mmap & munmap)
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single
