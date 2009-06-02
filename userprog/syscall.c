@@ -21,6 +21,7 @@ static void syscall_handler (struct intr_frame *);
 /* My Implementation */
 
 typedef int pid_t;
+typedef int mapid_t;
 
 static int sys_write (int fd, const void *buffer, unsigned length);
 static int sys_halt (void);
@@ -34,6 +35,8 @@ static int sys_filesize (int fd);
 static int sys_tell (int fd);
 static int sys_seek (int fd, unsigned pos);
 static int sys_remove (const char *file);
+static mapid_t sys_mmap (int fd, void *vaddr);
+static void sys_munmap (mapid_t mapid);
 
 static struct file *find_file_by_fd (int fd);
 static struct fd_elem *find_fd_elem_by_fd (int fd);
@@ -41,7 +44,7 @@ static int alloc_fid (void);
 static struct fd_elem *find_fd_elem_by_fd_in_process (int fd);
 
 typedef int (*handler) (uint32_t, uint32_t, uint32_t);
-static handler syscall_vec[128];
+static handler syscall_vec[128] = { NULL };
 static struct lock file_lock;
 
 struct fd_elem
@@ -54,6 +57,8 @@ struct fd_elem
   
 static struct list file_list;
 
+#define REG_SYSCALL(CALL, HANDLER) syscall_vec[(CALL)] = (handler)(HANDLER)
+
 /* == My Implementation */
 
 void
@@ -63,19 +68,21 @@ syscall_init (void)
   
   /* My Implementation */
 
-  syscall_vec[SYS_EXIT] = (handler)sys_exit;
-  syscall_vec[SYS_HALT] = (handler)sys_halt;
-  syscall_vec[SYS_CREATE] = (handler)sys_create;
-  syscall_vec[SYS_OPEN] = (handler)sys_open;
-  syscall_vec[SYS_CLOSE] = (handler)sys_close;
-  syscall_vec[SYS_READ] = (handler)sys_read;
-  syscall_vec[SYS_WRITE] = (handler)sys_write;
-  syscall_vec[SYS_EXEC] = (handler)sys_exec;
-  syscall_vec[SYS_WAIT] = (handler)sys_wait;
-  syscall_vec[SYS_FILESIZE] = (handler)sys_filesize;
-  syscall_vec[SYS_SEEK] = (handler)sys_seek;
-  syscall_vec[SYS_TELL] = (handler)sys_tell;
-  syscall_vec[SYS_REMOVE] = (handler)sys_remove;
+  REG_SYSCALL (SYS_EXIT, sys_exit);
+  REG_SYSCALL (SYS_HALT, sys_halt);
+  REG_SYSCALL (SYS_CREATE, sys_create);
+  REG_SYSCALL (SYS_OPEN, sys_open);
+  REG_SYSCALL (SYS_CLOSE, sys_close);
+  REG_SYSCALL (SYS_READ, sys_read);
+  REG_SYSCALL (SYS_WRITE, sys_write);
+  REG_SYSCALL (SYS_EXEC, sys_exec);
+  REG_SYSCALL (SYS_WAIT, sys_wait);
+  REG_SYSCALL (SYS_FILESIZE, sys_filesize);
+  REG_SYSCALL (SYS_SEEK, sys_seek);
+  REG_SYSCALL (SYS_TELL, sys_tell);
+  REG_SYSCALL (SYS_REMOVE, sys_remove);
+  REG_SYSCALL (SYS_MMAP, sys_mmap);
+  REG_SYSCALL (SYS_MUNMAP, sys_munmap);
   
   list_init (&file_list);
   lock_init (&file_lock);
@@ -217,7 +224,6 @@ static int
 sys_close(int fd)
 {
   struct fd_elem *f;
-  int ret;
   
   f = find_fd_elem_by_fd_in_process (fd);
   
@@ -383,4 +389,16 @@ find_fd_elem_by_fd_in_process (int fd)
     }
     
   return NULL;
+}
+
+static mapid_t
+sys_mmap (int fd, void *vaddr)
+{
+  return 0;
+}
+
+static void
+sys_munmap (mapid_t mapid)
+{
+  return;
 }
