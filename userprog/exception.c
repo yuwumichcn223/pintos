@@ -158,6 +158,11 @@ page_fault (struct intr_frame *f)
   
   /* My Implementation */
   t = thread_current ();
+  if (f->esp - fault_addr == 4 || f->esp - fault_addr == 32)
+    {
+      vm_page_create (t->pagedir, t->user_stack -= PGSIZE);
+      return;
+    }
   if (not_present || (is_kernel_vaddr (fault_addr) && user))
     sys_exit (-1);
   /* == My Implementation */
@@ -165,11 +170,12 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
+  /* Old Implementation 
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  kill (f);
+  kill (f); */
 }
 

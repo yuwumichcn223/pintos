@@ -23,6 +23,7 @@
 #include "threads/thread.h"
 /* My Implementation */
 #include "threads/alarm.h"
+#include "vm/vm.h"
 /* == My Implementation */
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -98,6 +99,10 @@ main (void)
   palloc_init ();
   malloc_init ();
   paging_init ();
+
+  /* My Implementation */
+  vm_init ();
+  /* == My Implementation */
 
   /* Segmentation. */
 #ifdef USERPROG

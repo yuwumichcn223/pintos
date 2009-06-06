@@ -20,6 +20,7 @@
 /* My Implementation */
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
+#include "vm/vm.h"
 /* == My Implementation */
 
 static thread_func start_process NO_RETURN;
@@ -133,10 +134,14 @@ start_process (void *file_name_)
   
   /* My Implementation */
   /* Setting up stack */
+  vm_pagedir_create (t->pagedir); /* initialize the supplemental page table */
   if (success)
     {
       t->self = filesys_open (file_name);
       file_deny_write (t->self);
+      
+      t->user_stack = PHYS_BASE - PGSIZE;
+      
       if_.esp -= file_name_len + 1;
       start = if_.esp;
       memcpy (if_.esp, file_name, file_name_len + 1);
@@ -245,6 +250,7 @@ process_exit (void)
   while (!list_empty (&cur->wait.waiters))
     sema_up (&cur->wait);
   file_close (cur->self);
+  vm_pagedir_destroy (cur->pagedir);
   cur->self = NULL;
   cur->exited = true;
   if (cur->parent)
