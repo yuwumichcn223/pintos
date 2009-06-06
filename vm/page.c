@@ -19,6 +19,7 @@ struct spte_t /* page table entry */
   struct frame_table_entry *fte;  /* kernel frame */
   void *upage;                    /* virtual address */
   struct list_elem elem;
+  struct spde_t *spde;
 };
 
 static struct list pagedirs; /* page directories */
@@ -79,8 +80,12 @@ vm_pagedir_destroy (uint32_t *pd)
   ASSERT (spde);
   lock_acquire (&pagelock);
   list_remove (&spde->elem);
-  for (l = list_begin (&spde->spt); l != list_end (&spde->spt); l = list_next (l))
-    vm_page_destroy (list_entry (l, struct spte_t, elem));
+  while (!list_empty (&spde->spt))
+    {
+      l = list_pop_back (&spde->spt);
+      vm_page_destroy (list_entry (l, struct spte_t, elem));
+    }
+  
   free (spde);
   lock_release (&pagelock);
 }
@@ -101,6 +106,7 @@ vm_page_create (uint32_t *pd, void *vaddr)
     goto done;
   ret->fte = vm_alloc_frame ();
   ret->upage = vaddr;
+  ret->spde = spde;
   if (!pagedir_set_page (pd, vaddr, ret->fte->kpage, true))
     {
       free (ret);
@@ -116,7 +122,16 @@ done:
 void
 vm_page_destroy (struct spte_t *spte)
 {
+  struct spde_t *spde;
   
+  spde = spte->spde;
+  ASSERT (spte && spde);
+  
+  lock_acquire (&spde->mutex);
+  list_remove (&spte->elem);
+  vm_free_frame (spte->fte);
+  free (spte);
+  lock_release (&spde->mutex);
 }
 
 static struct spde_t *find_spde_by_pd (uint32_t *pd)

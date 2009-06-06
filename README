@@ -387,15 +387,15 @@ Test Results (Project 3, against previous):
 (=) pass tests/userprog/bad-write2
 (=) pass tests/userprog/bad-jump
 (=) pass tests/userprog/bad-jump2
-(+) pass tests/vm/pt-grow-stack
-(+) pass tests/vm/pt-grow-pusha
+(=) pass tests/vm/pt-grow-stack
+(=) pass tests/vm/pt-grow-pusha
 (=) pass tests/vm/pt-grow-bad
-(+) pass tests/vm/pt-big-stk-obj
+(=) pass tests/vm/pt-big-stk-obj
 (=) pass tests/vm/pt-bad-addr
 (=) pass tests/vm/pt-bad-read
-(=) FAIL tests/vm/pt-write-code
-(=) FAIL tests/vm/pt-write-code2
-(+) pass tests/vm/pt-grow-stk-sc
+(+) pass tests/vm/pt-write-code
+(+) pass tests/vm/pt-write-code2
+(=) pass tests/vm/pt-grow-stk-sc
 (=) FAIL tests/vm/page-linear
 (=) FAIL tests/vm/page-parallel
 (=) FAIL tests/vm/page-merge-seq
@@ -411,11 +411,11 @@ Test Results (Project 3, against previous):
 (=) FAIL tests/vm/mmap-write
 (=) FAIL tests/vm/mmap-exit
 (=) FAIL tests/vm/mmap-shuffle
-(=) FAIL tests/vm/mmap-bad-fd
+(+) pass tests/vm/mmap-bad-fd
 (=) FAIL tests/vm/mmap-clean
 (=) FAIL tests/vm/mmap-inherit
-(=) FAIL tests/vm/mmap-misalign
-(=) FAIL tests/vm/mmap-null
+(+) pass tests/vm/mmap-misalign
+(+) pass tests/vm/mmap-null
 (=) FAIL tests/vm/mmap-over-code
 (=) FAIL tests/vm/mmap-over-data
 (=) FAIL tests/vm/mmap-over-stk
@@ -434,6 +434,6 @@ Test Results (Project 3, against previous):
 (=) pass tests/filesys/base/syn-read
 (=) pass tests/filesys/base/syn-remove
 (=) pass tests/filesys/base/syn-write
-24 of 109 tests failed.
+19 of 109 tests failed.
 
 ==================================

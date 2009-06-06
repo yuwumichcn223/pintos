@@ -1,6 +1,7 @@
 /* This files maintains the frame table */
 
 #include "vm/vm.h"
+#include "threads/synch.h"
 #include "threads/palloc.h"
 #include "threads/pte.h"
 
@@ -8,6 +9,8 @@
 
 static struct frame_table_entry *find_free_frame (void);
 static bool is_frame_valid (struct frame_table_entry *f);
+
+static struct lock frame_lock;
 
 static struct frame_table_entry ft[FRAME_TABLE_SIZE];
 
@@ -17,8 +20,13 @@ vm_frame_init (void)
   int i;
   
   for (i = 0; i != FRAME_TABLE_SIZE - 1; ++i)
-    ft[i].kpage = NULL;
+    {
+      ft[i].kpage = NULL;
+      ft[i].occupied = false;
+    }
+    
   ft[FRAME_TABLE_SIZE - 1].kpage = PT_MAGIC;
+  lock_init (&frame_lock);
 }
 
 /* Allocates a physical frame */
@@ -30,10 +38,20 @@ vm_alloc_frame (void)
   
   _free = find_free_frame ();
   ASSERT (is_frame_valid (_free));
-  
+  lock_acquire (&frame_lock);
   p = palloc_get_page (PAL_USER); /* from a user pool */
   _free->kpage = p;
+  _free->occupied = true;
+  lock_release (&frame_lock);
   return _free;
+}
+
+void
+vm_free_frame (struct frame_table_entry *f)
+{
+  lock_acquire (&frame_lock);
+  f->occupied = false;
+  lock_release (&frame_lock);
 }
 
 /* Finds a free frame from the frame table,
@@ -45,7 +63,7 @@ find_free_frame (void)
   struct frame_table_entry *ret;
   
   ret = ft;
-  while (ret->kpage && ret->kpage != PT_MAGIC)
+  while (ret->kpage != PT_MAGIC && ret->occupied)
     ++ret;
   return ret;
 }

@@ -5,11 +5,12 @@
 
 #include "threads/pte.h"
 
-#define FRAME_TABLE_SIZE 32
+#define FRAME_TABLE_SIZE 1024
 
 struct frame_table_entry
 {
-  void *kpage; /* physical address to the frame */
+  void *kpage;   /* physical address to the frame */
+  bool occupied; /* whether used or not */
 };
 
 
@@ -17,6 +18,7 @@ void vm_init (void);
 
 void vm_frame_init (void);
 struct frame_table_entry *vm_alloc_frame (void);
+void vm_free_frame (struct frame_table_entry *f);
 
 void vm_page_init (void);
 bool vm_pagedir_create (uint32_t *pd);

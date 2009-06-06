@@ -128,6 +128,7 @@ start_process (void *file_name_)
             ++save_ptr;
           argv_off[++argc] = save_ptr - file_name;
         }
+  
   /* == My Implementation */
   
   success = load (file_name, &if_.eip, &if_.esp);
@@ -139,9 +140,7 @@ start_process (void *file_name_)
     {
       t->self = filesys_open (file_name);
       file_deny_write (t->self);
-      
       t->user_stack = PHYS_BASE - PGSIZE;
-      
       if_.esp -= file_name_len + 1;
       start = if_.esp;
       memcpy (if_.esp, file_name, file_name_len + 1);

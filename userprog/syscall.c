@@ -394,6 +394,12 @@ find_fd_elem_by_fd_in_process (int fd)
 static mapid_t
 sys_mmap (int fd, void *vaddr)
 {
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || !vaddr)
+    return -1;
+  if (!find_fd_elem_by_fd_in_process (fd))
+    return -1;
+  if ((uint32_t)vaddr % PGSIZE != 0) /* miss-align */
+    return -1;
   return 0;
 }
 
