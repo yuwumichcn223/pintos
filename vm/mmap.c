@@ -7,6 +7,7 @@
 #include <list.h>
 #include "threads/malloc.h"
 #include <stdio.h>
+#include "userprog/pagedir.h"
 
 struct map_elem
 {
@@ -81,10 +82,12 @@ vm_munmap (mapid_t id)
   struct map_elem *m;
   struct list_elem *l;
   struct spte_t *spte;
+  disk_sector_t off;
   
   m = find_map_elem_by_mapid (id);
   if (!m)
     return;
+    
   while (!list_empty (&m->pages))
     {
       l = list_begin (&m->pages);

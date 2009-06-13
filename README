@@ -222,10 +222,20 @@ added vm/vm.h
 added vm/page.c
 added vm/frame.c
 added vm/swap.c
+modified Makefile.build
 modified userprog/process.c
 modified userprog/syscall.c
 modified threads/thread.h
 modified threads/thread.c
+
+*****************
+
+SAT, Jun 13, 2009
+added vm/mmap.c
+modified Makefile.build
+modified vm/page.c
+modified vm/vm.h
+modified userprog/syscall.c
 
 Test Results (Project 1):
 -------------
@@ -418,23 +428,23 @@ Test Results (Project 3, against previous):
 (=) FAIL tests/vm/page-merge-stk
 (=) FAIL tests/vm/page-merge-mm
 (=) pass tests/vm/page-shuffle
-(=) FAIL tests/vm/mmap-read
-(=) FAIL tests/vm/mmap-close
+(+) pass tests/vm/mmap-read
+(+) pass tests/vm/mmap-close
 (=) pass tests/vm/mmap-unmap
-(=) FAIL tests/vm/mmap-overlap
-(=) FAIL tests/vm/mmap-twice
-(=) FAIL tests/vm/mmap-write
-(=) FAIL tests/vm/mmap-exit
-(=) FAIL tests/vm/mmap-shuffle
+(+) pass tests/vm/mmap-overlap
+(+) pass tests/vm/mmap-twice
+(+) pass tests/vm/mmap-write
+(+) pass tests/vm/mmap-exit
+(+) pass tests/vm/mmap-shuffle
 (=) pass tests/vm/mmap-bad-fd
-(=) FAIL tests/vm/mmap-clean
-(=) FAIL tests/vm/mmap-inherit
+(+) pass tests/vm/mmap-clean
+(+) pass tests/vm/mmap-inherit
 (=) pass tests/vm/mmap-misalign
 (=) pass tests/vm/mmap-null
-(=) FAIL tests/vm/mmap-over-code
-(=) FAIL tests/vm/mmap-over-data
-(=) FAIL tests/vm/mmap-over-stk
-(=) FAIL tests/vm/mmap-remove
+(+) pass tests/vm/mmap-over-code
+(+) pass tests/vm/mmap-over-data
+(+) pass tests/vm/mmap-over-stk
+(+) pass tests/vm/mmap-remove
 (=) pass tests/vm/mmap-zero
 (=) pass tests/filesys/base/lg-create
 (=) pass tests/filesys/base/lg-full
@@ -449,6 +459,6 @@ Test Results (Project 3, against previous):
 (=) pass tests/filesys/base/syn-read
 (=) pass tests/filesys/base/syn-remove
 (=) pass tests/filesys/base/syn-write
-19 of 109 tests failed.
+6 of 109 tests failed.
 
 ==================================
