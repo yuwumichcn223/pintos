@@ -17,6 +17,7 @@ struct map_elem
 
 static mapid_t alloc_mapid (void);
 static struct map_elem *find_map_elem_by_mapid (mapid_t id);
+static bool check_mapped (uint32_t *pd, void *vaddr);
 
 static struct list maps;
 
@@ -26,6 +27,7 @@ vm_mmap_init (void)
   list_init (&maps);
 }
 
+/* Memory map the files */
 mapid_t
 vm_mmap (uint32_t *pd, struct file *file, void *vaddr)
 {
@@ -38,8 +40,16 @@ vm_mmap (uint32_t *pd, struct file *file, void *vaddr)
   disk_sector_t off;
   
   ret = MAPID_ERROR;
+  
+  if (check_mapped (pd, vaddr))
+    goto done;
+  
   ino = file_get_inode (file);
   sector = inode_get_inumber (ino) + 1;
+  
+  size = file_length (file) / PGSIZE;
+  if (file_length (file) % PGSIZE)
+    ++size;
   
   map = malloc (sizeof (struct map_elem));
   if (!map)
@@ -47,9 +57,6 @@ vm_mmap (uint32_t *pd, struct file *file, void *vaddr)
   
   list_init (&map->pages);
   
-  size = file_length (file) / PGSIZE;
-  if (file_length (file) % PGSIZE)
-    ++size;
   for (i = 0; i != size; ++i)
     {
       spte = vm_page_create (pd, vaddr, fs, sector);
@@ -67,6 +74,7 @@ done:
   return ret;
 }
 
+/* Unmap the memory area */
 void
 vm_munmap (mapid_t id)
 {
@@ -74,17 +82,17 @@ vm_munmap (mapid_t id)
   struct list_elem *l;
   struct spte_t *spte;
   
-  /*m = find_map_elem_by_mapid (id);
+  m = find_map_elem_by_mapid (id);
   if (!m)
     return;
   while (!list_empty (&m->pages))
     {
       l = list_begin (&m->pages);
-      spte = list_entry (l, struct spte_t, elem);
+      spte = list_entry (l, struct spte_t, mmap_elem);
       vm_page_destroy (spte);
     }
   list_remove (&m->elem);
-  free (m);*/
+  free (m);
 }
 
 static struct map_elem *
@@ -101,6 +109,33 @@ find_map_elem_by_mapid (mapid_t id)
     }
     
   return NULL;
+}
+
+static bool
+check_mapped (uint32_t *pd, void *vaddr)
+{
+  struct list_elem *l, *r;
+  struct map_elem *m;
+  struct spte_t *s;
+  void *round;
+  
+  round = pg_round_down (vaddr);
+  
+  if (pagedir_get_page (pd, vaddr))
+    return true;
+  
+  for (l = list_begin (&maps); l != list_end (&maps); l = list_next (l))
+    {
+      m = list_entry (l, struct map_elem, elem);
+      for (r = list_begin (&m->pages); r != list_end (&m->pages); r = list_next (r))
+        {
+          s = list_entry (r, struct spte_t, mmap_elem);
+          if (s->upage == round)
+            return true;
+        }
+    }
+    
+  return false;
 }
 
 static mapid_t

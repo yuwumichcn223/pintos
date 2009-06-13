@@ -132,6 +132,7 @@ vm_page_destroy (struct spte_t *spte)
   ASSERT (spte && spde);
   
   lock_acquire (&spde->mutex);
+  pagedir_clear_page (spde->pd, spte->upage);
   list_remove (&spte->elem);
   if (spte->mmapped)
     list_remove (&spte->mmap_elem);
