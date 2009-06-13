@@ -408,8 +408,8 @@ Test Results (Project 3, against previous):
 (=) pass tests/vm/pt-big-stk-obj
 (=) pass tests/vm/pt-bad-addr
 (=) pass tests/vm/pt-bad-read
-(+) pass tests/vm/pt-write-code
-(+) pass tests/vm/pt-write-code2
+(=) pass tests/vm/pt-write-code
+(=) pass tests/vm/pt-write-code2
 (=) pass tests/vm/pt-grow-stk-sc
 (=) FAIL tests/vm/page-linear
 (=) FAIL tests/vm/page-parallel
@@ -426,11 +426,11 @@ Test Results (Project 3, against previous):
 (=) FAIL tests/vm/mmap-write
 (=) FAIL tests/vm/mmap-exit
 (=) FAIL tests/vm/mmap-shuffle
-(+) pass tests/vm/mmap-bad-fd
+(=) pass tests/vm/mmap-bad-fd
 (=) FAIL tests/vm/mmap-clean
 (=) FAIL tests/vm/mmap-inherit
-(+) pass tests/vm/mmap-misalign
-(+) pass tests/vm/mmap-null
+(=) pass tests/vm/mmap-misalign
+(=) pass tests/vm/mmap-null
 (=) FAIL tests/vm/mmap-over-code
 (=) FAIL tests/vm/mmap-over-data
 (=) FAIL tests/vm/mmap-over-stk

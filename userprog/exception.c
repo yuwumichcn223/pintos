@@ -165,6 +165,7 @@ page_fault (struct intr_frame *f)
   /* My Implementation */
   t = thread_current ();
 #ifdef VM
+  //printf ("fault_addr: %p\n", fault_addr);
   if (f->esp - fault_addr == 4 || f->esp - fault_addr == 32)
     {
       vm_page_create (t->pagedir, t->user_stack -= PGSIZE, fs, SECTOR_ERROR);

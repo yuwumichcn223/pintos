@@ -5,6 +5,7 @@
 #include "threads/synch.h"
 #include <bitmap.h>
 #include "userprog/pagedir.h"
+#include <string.h>
 
 static struct lock swap_lock;
 static struct bitmap *free_slots;

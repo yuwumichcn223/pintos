@@ -41,6 +41,7 @@ vm_alloc_frame (void)
   if (!_free->kpage)
     _free->kpage = palloc_get_page (PAL_USER); /* from a user pool */
   _free->occupied = true;
+  memset (_free->kpage, PGSIZE, 0);
   lock_release (&frame_lock);
   return _free;
 }

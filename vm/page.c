@@ -19,6 +19,7 @@ vm_init (void)
   vm_frame_init ();
   vm_page_init ();
   vm_swap_init ();
+  vm_mmap_init ();
 }
 
 void
@@ -94,6 +95,7 @@ vm_page_create (uint32_t *pd, void *vaddr, struct disk *disk, disk_sector_t sect
 
   ret->upage = vaddr;
   ret->spde = spde;
+  ret->mmapped = false;
   ret->swap = malloc (sizeof (struct swap_t));
   ASSERT (ret->swap);
   ret->swap->page = ret;
@@ -131,6 +133,8 @@ vm_page_destroy (struct spte_t *spte)
   
   lock_acquire (&spde->mutex);
   list_remove (&spte->elem);
+  if (spte->mmapped)
+    list_remove (&spte->mmap_elem);
   vm_free_frame (spte->fte);
   vm_free_slot (spte->swap);
   free (spte->swap);

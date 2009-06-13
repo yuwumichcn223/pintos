@@ -14,6 +14,7 @@
 #include "threads/malloc.h"
 #include "devices/input.h"
 #include "threads/synch.h"
+#include "vm/vm.h"
 /* == My Implementation */
 
 static void syscall_handler (struct intr_frame *);
@@ -21,7 +22,6 @@ static void syscall_handler (struct intr_frame *);
 /* My Implementation */
 
 typedef int pid_t;
-typedef int mapid_t;
 
 static int sys_write (int fd, const void *buffer, unsigned length);
 static int sys_halt (void);
@@ -394,17 +394,20 @@ find_fd_elem_by_fd_in_process (int fd)
 static mapid_t
 sys_mmap (int fd, void *vaddr)
 {
+  struct fd_elem *f;
+  
   if (fd == STDIN_FILENO || fd == STDOUT_FILENO || !vaddr)
     return -1;
-  if (!find_fd_elem_by_fd_in_process (fd))
+  if (!(f = find_fd_elem_by_fd_in_process (fd)))
     return -1;
   if ((uint32_t)vaddr % PGSIZE != 0) /* miss-align */
     return -1;
-  return 0;
+    
+  return vm_mmap (thread_current ()->pagedir, f->file, vaddr);
 }
 
 static void
 sys_munmap (mapid_t mapid)
 {
-  return;
+  return vm_munmap (mapid);
 }
