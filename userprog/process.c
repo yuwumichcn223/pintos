@@ -21,6 +21,7 @@
 #include "threads/malloc.h"
 #include "userprog/syscall.h"
 #include "vm/vm.h"
+#include "filesys/inode.h"
 /* == My Implementation */
 
 static thread_func start_process NO_RETURN;
@@ -128,14 +129,17 @@ start_process (void *file_name_)
             ++save_ptr;
           argv_off[++argc] = save_ptr - file_name;
         }
-  
+  t->pagedir = pagedir_create ();
+  if (t->pagedir == NULL) 
+    goto exit;
+  process_activate ();
+  vm_pagedir_create (t->pagedir); /* initialize the supplemental page table */
   /* == My Implementation */
   
   success = load (file_name, &if_.eip, &if_.esp);
   
   /* My Implementation */
   /* Setting up stack */
-  vm_pagedir_create (t->pagedir); /* initialize the supplemental page table */
   if (success)
     {
       t->self = filesys_open (file_name);
@@ -378,10 +382,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int i;
 
   /* Allocate and activate page directory. */
+  /* Old Implmentation
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
-  process_activate ();
+  process_activate (); */
 
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -545,6 +550,16 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
+  /* My Implementation */
+  disk_sector_t sector;
+  struct inode *ino;
+  struct thread *t;
+  
+  t = thread_current ();
+  ino = file_get_inode (file);
+  sector = inode_get_inumber (ino);
+  /* == My Implementation */
+  
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -557,7 +572,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
-
+      
+#ifdef VM
       /* Get a page of memory. */
       uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
@@ -577,6 +593,16 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
+#else
+      /* My Implementation */
+      if (page_read_bytes > 0)
+        vm_page_create (t->pagedir, upage, fs, sector);
+      else if (page_zero_bytes > 0)
+        vm_page_create (t->pagedir, upage, swap, SECTOR_ZERO);
+      printf ("UPAGE in load segment: %p\n", upage);
+      sector += SLOT_SIZE;
+      /* == My Implementation */
+#endif
 
       /* Advance. */
       read_bytes -= page_read_bytes;

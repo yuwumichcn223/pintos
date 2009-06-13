@@ -7,6 +7,8 @@
 /* My Implementation */
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#include "vm/vm.h"
+#include <debug.h>
 /* == My Implementation */
 
 /* Number of page faults processed. */
@@ -133,6 +135,10 @@ page_fault (struct intr_frame *f)
   
   /* My Implementation */
   struct thread *t;
+  
+#ifdef VM
+  struct spte_t *page;
+#endif
   /* == My Implementation */
 
   /* Obtain faulting address, the virtual address that was
@@ -158,11 +164,21 @@ page_fault (struct intr_frame *f)
   
   /* My Implementation */
   t = thread_current ();
+#ifdef VM
   if (f->esp - fault_addr == 4 || f->esp - fault_addr == 32)
     {
-      vm_page_create (t->pagedir, t->user_stack -= PGSIZE);
+      vm_page_create (t->pagedir, t->user_stack -= PGSIZE, fs, SECTOR_ERROR);
       return;
     }
+  if (not_present && is_user_vaddr (fault_addr) && user) /* Load the page in if exists */
+    {
+      page = vm_page_find_by_vaddr (t->pagedir, fault_addr);
+      if (page)
+        vm_load_page (page);
+      else /* No such page at all */
+        sys_exit (-1);
+    }
+#endif
   if (not_present || (is_kernel_vaddr (fault_addr) && user) || (!not_present && write))
     sys_exit (-1);
   /* == My Implementation */

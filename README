@@ -212,6 +212,21 @@ Requirements:
 3) Memory Mapped Files
    * Implement memory mapped files, including the system calls(mmap & munmap)
 
+Changelog:
+
+FRI, Jun 12, 2009
+Implemented frames, paging and swapping.
+Implemented stack growth
+
+added vm/vm.h
+added vm/page.c
+added vm/frame.c
+added vm/swap.c
+modified userprog/process.c
+modified userprog/syscall.c
+modified threads/thread.h
+modified threads/thread.c
+
 Test Results (Project 1):
 -------------
 (=) pass tests/threads/alarm-single

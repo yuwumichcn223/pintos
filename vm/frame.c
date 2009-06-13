@@ -34,13 +34,12 @@ struct frame_table_entry *
 vm_alloc_frame (void)
 {
   struct frame_table_entry *_free;
-  void *p;
   
   _free = find_free_frame ();
   ASSERT (is_frame_valid (_free));
   lock_acquire (&frame_lock);
-  p = palloc_get_page (PAL_USER); /* from a user pool */
-  _free->kpage = p;
+  if (!_free->kpage)
+    _free->kpage = palloc_get_page (PAL_USER); /* from a user pool */
   _free->occupied = true;
   lock_release (&frame_lock);
   return _free;
